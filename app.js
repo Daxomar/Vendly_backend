@@ -228,13 +228,16 @@ app.use('/api/v1/resellerBundlePrice', resellerBundlePriceRouter );
 // Error middleware should be last
 app.use(errorMiddleware);
 
+// app.get('/', (req, res) => {
+//   res.status(404).json({ message: 'Not Found' });
+// });
+
+
 app.get('/', (req, res) => {
-  res.status(404).json({ message: 'Not Found' });
+  res.send("Welcome, Now leave!");
 });
 
-app.get('/api', (req, res) => {
-  res.status(404).json({ message: 'Not Found' });
-});
+
 
 app.get('/healthz', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
