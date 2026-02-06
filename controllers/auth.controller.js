@@ -112,7 +112,7 @@ export const signUp = async (req, res, next) => {
         res.cookie('token', tokens.accessToken, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
+            sameSite: isProduction ? 'strict' : 'lax',
             domain: isProduction ? '.joydatabundle.com' : undefined,
             maxAge: 1000 * 60 * 60,
             path: '/',
@@ -121,7 +121,7 @@ export const signUp = async (req, res, next) => {
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
+            sameSite: isProduction ? 'strict' : 'lax',
             domain: isProduction ? '.joydatabundle.com' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
@@ -234,7 +234,7 @@ export const signIn = async (req, res, next) => {
         res.cookie('token', tokens.accessToken, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
+            sameSite: isProduction ? 'strict' : 'lax',
             domain: isProduction ? '.joydatabundle.com' : undefined,
             maxAge: 1000 * 60 * 60,
             path: '/',
@@ -243,7 +243,7 @@ export const signIn = async (req, res, next) => {
         res.cookie('refreshToken', tokens.refreshToken, {
             httpOnly: true,
             secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
+            sameSite: isProduction ? 'strict' : 'lax',
             domain: isProduction ? '.joydatabundle.com' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
@@ -360,7 +360,7 @@ export const signOut = async (req, res, next) => {
         res.clearCookie('token', {
             httpOnly: true,
             secure: true,
-            sameSite: 'none',
+            sameSite: 'strict',
             domain: ".joydatabundle.com",
             path: "/",
         });
@@ -368,7 +368,7 @@ export const signOut = async (req, res, next) => {
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: true,
-            sameSite: 'none',
+            sameSite: 'strict',
             domain: ".joydatabundle.com",
             path: "/",
         })
