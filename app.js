@@ -3,7 +3,12 @@ import cookieParser from 'cookie-parser';
 import { PORT } from './config/env.js';
 import cors from 'cors'
 
+
+
 //ROUTERS
+
+
+//Working Versions routers
 import userRouter from './routes/user.routes.js'
 import authRouter from './routes/auth.routes.js';
 import paymentRouter from './routes/payment.route.js';
@@ -13,6 +18,35 @@ import commissionRouter from './routes/commission.route.js';
 import payoutRouter from './routes/payout.route.js';
 import transactionRouter from './routes/transaction.route.js';
 import resellerBundlePriceRouter from './routes/resellerBundlePrice.route.js';
+
+
+
+
+
+
+// //MIGRATION ROUTER
+// import userRouter from './modules/Users/user.route.js'; //working
+
+// import authRouter from './modules/Auth/auth.route.js'; //working
+
+// import paymentRouter from './modules/Payments/payment.route.js'; // working
+
+// import bundleRouter from './modules/Bundle/bundle.route.js'; //working
+
+// import orderRouter from './modules/TrackOrder/order.route.js'; //working
+
+// import commissionRouter from './modules/Commission/commission.route.js'; //working
+
+// import transactionRouter from './modules/Transaction/transaction.route.js'; //working
+
+// import payoutRouter from './routes/payout.route.js';
+// import resellerBundlePriceRouter from './routes/resellerBundlePrice.route.js';
+
+
+
+
+
+
 
 //DATABASE CONNECTION
 import connectToDatabase from './database/mongodb.js';
@@ -31,6 +65,7 @@ app.set('trust proxy', 1);
 // CORS configuration - MUST be before other middlewares
 const allowedOrigins = [
   "https://joy-bundle-frontend.vercel.app",
+  "https://incurrable-wilhelmina-uncolloquially.ngrok-free.dev",
   "https://www.joydatabundle.com",
   "https://joydatabundle.com",
   "http://localhost:3000",
@@ -194,11 +229,15 @@ app.use('/api/v1/resellerBundlePrice', resellerBundlePriceRouter );
 app.use(errorMiddleware);
 
 app.get('/', (req, res) => {
-  res.send("Welcome to the dataBundle App Backend!");
+  res.status(404).json({ message: 'Not Found' });
 });
 
 app.get('/api', (req, res) => {
-  res.json({ message: 'API is working!' });
+  res.status(404).json({ message: 'Not Found' });
+});
+
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 console.log('Server is running on port 5000');
