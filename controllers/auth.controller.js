@@ -754,6 +754,49 @@ export const resetPassword = async (req, res, next) => {
 
 
 
+// export const refresh = async (req, res, next) => {
+//     const { refreshToken } = req.cookies;
+//     if (!refreshToken) return res.status(401).json({ message: "No refresh token" });
+
+//     try {
+//         const tokenDecoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET)
+
+//         const user = await User.findById(tokenDecoded.id);
+
+//         if (!user || user.refreshToken !== refreshToken) {  //I only used this user.refreshToken !== refreshToken if i saved tokens in db as well
+//             return res.status(401).json({ message: "Invalid refresh token" });
+//         }
+
+//         const tokens = generateTokens(user);
+//         user.accessToken = tokens.accessToken;
+//         user.refreshToken = tokens.refreshToken;
+
+//         await user.save();
+
+//         // Reset cookies
+//         res.cookie("token", tokens.accessToken, {
+//             httpOnly: true,
+//             secure: true,
+//             sameSite: "none",
+//             maxAge: 1000 * 60 * 15,
+//         });
+
+//         res.cookie("refreshToken", tokens.refreshToken, {
+//             httpOnly: true,
+//             secure: true,
+//             sameSite: "none",
+//             maxAge: 1000 * 60 * 60 * 24 * 7,
+//         });
+
+
+//         res.json({ success: true, message: "Tokens refreshed" });
+//     } catch (error) {
+//         console.log(error)
+//         return res.status(403).json({ message: "Invalid refresh token session ended login again" })
+//     }
+// }
+
+
 export const refresh = async (req, res, next) => {
     const { refreshToken } = req.cookies;
     if (!refreshToken) return res.status(401).json({ message: "No refresh token" });
@@ -763,7 +806,7 @@ export const refresh = async (req, res, next) => {
 
         const user = await User.findById(tokenDecoded.id);
 
-        if (!user || user.refreshToken !== refreshToken) {  //I only used this user.refreshToken !== refreshToken if i saved tokens in db as well
+        if (!user || user.refreshToken !== refreshToken) {
             return res.status(401).json({ message: "Invalid refresh token" });
         }
 
@@ -773,21 +816,26 @@ export const refresh = async (req, res, next) => {
 
         await user.save();
 
+        const isProduction = NODE_ENV === 'production';
+
         // Reset cookies
         res.cookie("token", tokens.accessToken, {
             httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            secure: isProduction,
+            sameSite: isProduction ? "strict" : "lax",
+            domain: isProduction ? '.joydatabundle.com' : undefined,
             maxAge: 1000 * 60 * 15,
+            path: '/',
         });
 
         res.cookie("refreshToken", tokens.refreshToken, {
             httpOnly: true,
-            secure: true,
-            sameSite: "none",
+            secure: isProduction,
+            sameSite: isProduction ? "strict" : "lax",
+            domain: isProduction ? '.joydatabundle.com' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
+            path: '/',
         });
-
 
         res.json({ success: true, message: "Tokens refreshed" });
     } catch (error) {
