@@ -195,7 +195,7 @@ export const generateTransactionReceiptTemplate = ({
       </div>
 
       <p style="margin-top: 20px;">
-        If you have any issues, reply to this email or contact support.
+        If you have any issues, Kindly text our support team at 0543681026.
       </p>
 
       <p>Thanks for choosing JoyBundle! 🎉</p>
