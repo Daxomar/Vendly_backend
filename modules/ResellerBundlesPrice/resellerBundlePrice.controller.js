@@ -1,6 +1,6 @@
-import ResellerBundlePrice from '../models/resellerBundlePrice.model.js';
-import Bundle from '../models/bundle.model.js';
-import User from '../models/user.model.js';
+import ResellerBundlePrice from '../../models/resellerBundlePrice.model.js';
+import Bundle from '../../models/bundle.model.js';
+import User from '../../models/user.model.js';
 
 
 
@@ -12,6 +12,8 @@ const SYSTEM_RESELLER_CODE = process.env.SYSTEM_RESELLER_CODE ; // Example syste
 export const getBundlesByResellerCode = async (req, res) => {
   try {
     const { resellerCode } = req.params;
+
+      console.log('ResellerBundlePrice Migration Successful')
 
 
     // 1. Reject direct usage of system code (if user tried to pass it)

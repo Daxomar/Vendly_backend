@@ -5,19 +5,17 @@ import { SENDGRID_API_KEY,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD,EMAIL_FROM} from 
 
 sgMail.setApiKey(SENDGRID_API_KEY);
 
-// const emailQueue = new Queue('email', {
-//   redis: {
-//     host: REDIS_HOST || 'localhost',
-//     port: REDIS_PORT || 6379,
-//     password: REDIS_PASSWORD || undefined,
-//     tls: true  
-//   }
-// });
-
-const REDIS_URL="rediss://default:AdY5AAIncDFmZTIxMjA5MWY2ZWM0NjU4YWM0NjFjYmE1M2VmMWEyNnAxNTQ4NDE@related-lion-54841.upstash.io:6379"
+const emailQueue = new Queue('email', {
+  redis: {
+    host: REDIS_HOST || 'localhost',
+    port: REDIS_PORT || 6379,
+    password: REDIS_PASSWORD || undefined,
+    tls: true  
+  }
+});
 
 
-const emailQueue = new Queue('email', REDIS_URL);
+
 
 // Process emails in background
 

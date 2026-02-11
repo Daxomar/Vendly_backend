@@ -130,16 +130,14 @@ export async function initializePayment(req, res) {
         const codeToUse = resellerCode || SYSTEM_RESELLER_CODE;
 
 
+
+
+
+
         // Find reseller by code
-
-
-
         reseller = await User.findOne({
             resellerCode: codeToUse,
             role: 'user',
-            //   ...(resellerCode && { isSystemAccount: { $ne: true } })
-            // Assuming resellers have role 'user'
-            //   isAccountVerified: true 
         });
 
 
@@ -152,19 +150,6 @@ export async function initializePayment(req, res) {
         }
 
 
-        //    console.log("Reseller Code received:", resellerCode);
-        //    if(resellerCode){
-        //     reseller = await User.findOne({ 
-        //         resellerCode,
-        //         // role:'user',
-        //         // isApproved: true
-        //     })
-
-
-
-
-
-        //    }
 
         //RSBP -- ResellerBundlePrice
         const RSBP = await getResellerBundlePrice(reseller._id, bundle._id)   // me picking up the actual reseller._id = "6322344..." and actual bundle id too as well bundle._id = "66663344..."
@@ -299,68 +284,9 @@ export async function verifyPayment(req, res) {
     }
 }
 
-/*
-    Controller: handleWebhook
-    Paystack posts to your webhook endpoint. To verify signature you must compute HMAC SHA512 of raw body using your PAYSTACK_SECRET_KEY.
-    NOTE: Express must be configured to provide raw body (e.g., using a raw body middleware) and attached to req.rawBody.
-    Example middleware setup (outside this file):
-        app.use('/webhook', express.json({
-            verify: (req, res, buf) => { req.rawBody = buf }
-        }));
-*/
 
 
-// // Separate async function for processing and Creating Transaction in DB
-// async function processWebhookEvent(event) {
-//     const { reference, status, channel, metadata } = event.data;
 
-//     // Find the pending transaction
-//     const transaction = await Transaction.findOne({ reference });
-
-//     if (!transaction) {
-//         console.error('Transaction not found for reference:', reference);
-//         return;
-//     }
-
-//     // Prevent duplicate processing
-//     if (transaction.status === 'success' || transaction.status === 'failed') {
-//         console.log('Transaction already processed:', reference);
-//         return;
-//     }
-
-//     // Handle successful charges
-//     if (event.event === 'charge.success') {
-//         transaction.status = 'success';
-//         transaction.channel = channel;
-//         transaction.provider_response = {
-//             gateway_response: event.data.gateway_response,
-//             paid_at: event.data.paid_at,
-//             ip_address: event.data.ip_address
-//         };
-
-//         await transaction.save();
-
-//         console.log('Transaction completed successfully:', reference);
-//     }
-
-//     // Handle failed charges
-//     else if (event.event === 'charge.failed') {
-//         transaction.status = 'failed';
-//         transaction.provider_response = {
-//             reason: event.data.gateway_response,
-//             failed_at: event.data.paid_at || new Date()
-//         };
-
-//         await transaction.save();
-
-//         console.log('Transaction failed:', reference);
-//     }
-
-//     // Log other events but don't process
-//     else {
-//         console.log('Ignoring event:', event.event);
-//     }
-// }
 
 export async function handleWebhook(req, res) {
     try {
@@ -388,7 +314,7 @@ export async function handleWebhook(req, res) {
 
 
         res.status(200).json({ status: true });
-
+        
         console.log('✅Paystack 200 response sent back');
 
         // external Utility function to process webhook asynchronously 
@@ -401,7 +327,7 @@ export async function handleWebhook(req, res) {
             };
 
             // Log to console (Render captures all console output)
-            console.error('⚠️  WEBHOOK PROCESSING FAILED PAYMENT SUCCESS BUT MIGHT NOT BE MARKED IN DB:');
+            console.error('⚠️⚠️⚠️  WEBHOOK PROCESSING FAILED PAYMENT SUCCESS BUT MIGHT NOT BE MARKED IN DB⚠️⚠️⚠️:');
             console.error(JSON.stringify(errorLog, null, 2));
         })
 

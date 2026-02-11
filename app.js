@@ -9,38 +9,39 @@ import cors from 'cors'
 
 
 //Working Versions routers
-import userRouter from './routes/user.routes.js'
-import authRouter from './routes/auth.routes.js';
-import paymentRouter from './routes/payment.route.js';
-import bundleRouter from './routes/bundle.route.js';
-import orderRouter from './routes/order.route.js';
-import commissionRouter from './routes/commission.route.js';
-import payoutRouter from './routes/payout.route.js';
-import transactionRouter from './routes/transaction.route.js';
-import resellerBundlePriceRouter from './routes/resellerBundlePrice.route.js';
-
-
-
-
-
-
-// //MIGRATION ROUTER
-// import userRouter from './modules/Users/user.route.js'; //working
-
-// import authRouter from './modules/Auth/auth.route.js'; //working
-
-// import paymentRouter from './modules/Payments/payment.route.js'; // working
-
-// import bundleRouter from './modules/Bundle/bundle.route.js'; //working
-
-// import orderRouter from './modules/TrackOrder/order.route.js'; //working
-
-// import commissionRouter from './modules/Commission/commission.route.js'; //working
-
-// import transactionRouter from './modules/Transaction/transaction.route.js'; //working
-
+// import userRouter from './routes/user.routes.js'
+// import authRouter from './routes/auth.routes.js';
+// import paymentRouter from './routes/payment.route.js';
+// import bundleRouter from './routes/bundle.route.js';
+// import orderRouter from './routes/order.route.js';
+// import commissionRouter from './routes/commission.route.js';
+// import transactionRouter from './routes/transaction.route.js';
 // import payoutRouter from './routes/payout.route.js';
 // import resellerBundlePriceRouter from './routes/resellerBundlePrice.route.js';
+
+
+
+
+
+
+//MIGRATION ROUTER
+import userRouter from './modules/Users/user.route.js'; //working
+
+import authRouter from './modules/Auth/auth.route.js'; //working
+
+import paymentRouter from './modules/Payments/payment.route.js'; // working
+
+import bundleRouter from './modules/Bundle/bundle.route.js'; //working
+
+import orderRouter from './modules/TrackOrder/order.route.js'; //working
+
+import commissionRouter from './modules/Commission/commission.route.js'; //working
+
+import transactionRouter from './modules/Transaction/transaction.route.js'; //working
+
+import payoutRouter from './modules/Payout/payout.route.js'; //working
+
+import resellerBundlePriceRouter from './modules/ResellerBundlesPrice/resellerBundlePrice.route.js'; //working
 
 
 
@@ -100,90 +101,6 @@ app.use(cors({
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 
-
-
-
-
-
-// const allowedOrigins = [
-//   "http://localhost:3000",
-//   "http://localhost:5000",
-// ];
-
-// app.use(cors({
-//   origin: function (origin, callback) {
-//     if (!origin) return callback(null, true);
-
-//     if (
-//       allowedOrigins.includes(origin) ||
-//       origin.includes("ngrok-free.app") // allow any NGROK tunnels
-//     ) {
-//       return callback(null, true);
-//     }
-
-//     console.log("CORS blocked origin:", origin);
-//     callback(new Error(`Origin ${origin} not allowed by CORS`));
-//   },
-
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-//   allowedHeaders: [
-//     "Content-Type",
-//     "Authorization",
-//     "X-Requested-With",
-//     "Accept",
-//     "Origin",
-//     "ngrok-skip-browser-warning"
-//   ],
-//   exposedHeaders: ["Set-Cookie"],
-//   optionsSuccessStatus: 200
-// }));
-
-
-
-
-
-
-
-
-
-
-
-
-
-// const allowedOrigins = [
-//   "http://localhost:3000",
-//   "http://localhost:5000",
-//   "https://b942cc9a52e4.ngrok-free.app",
-// "https://c53d2e6cbcf9.ngrok-free.app"
-
-// ];
-
-// app.use(cors({
-//   origin: function (origin, callback) {
-//     // Allow requests with no origin (like Postman, mobile apps, etc.)
-//     if (!origin) return callback(null, true);
-
-//     // Allow localhost + any ngrok subdomain
-//     if (allowedOrigins.includes(origin) || /https:\/\/[a-z0-9-]+\.ngrok-free\.app$/.test(origin)) {
-//       callback(null, true);
-//     } else {
-//       console.log("CORS blocked origin:", origin);
-//       callback(new Error(`Origin ${origin} not allowed by CORS`));
-//     }
-//   },
-//   credentials: true,
-//   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-//   allowedHeaders: [
-//     "Content-Type",
-//     "Authorization",
-//     "X-Requested-With",
-//     "Accept",
-//     "Origin"
-//   ],
-//   exposedHeaders: ["Set-Cookie"],
-//   optionsSuccessStatus: 200
-// }));
 
 
 
