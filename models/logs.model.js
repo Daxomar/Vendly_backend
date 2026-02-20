@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const LogSchema = new mongoose.Schema({
-    _id: mongoose.Schema.Types.ObjectId,
+  
     transactionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Transaction',

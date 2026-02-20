@@ -15,7 +15,7 @@ export const logPaymentError = async (
       reference: transaction.reference,
       message : "Partial Payment Success, but DB Sync Failed",
       error: "Payment Error",
-      level : "Critical Error",
+      level : "critical",
       source :"paystackWebhook",
       paymentStatus: "verified",
       paymentAmount: transaction.amount,

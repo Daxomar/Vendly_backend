@@ -1,6 +1,6 @@
 import Transaction from '../../models/transaction.model.js';
 import BulkExport from '../../models/bulkexport.model.js';
-import { appEmitter } from '../../Lib/eventEmitter.js';
+
 
 
 
@@ -321,8 +321,6 @@ export const getTransactions = async (req, res) => {
 
 export const updateDeliveryStatus = async (req, res) => {
 
-let transaction; // Declare transaction in outer scope for error handling
-
   try {
     const { transactionId } = req.params;
     const { deliveryStatus, failureReason } = req.body;
@@ -343,7 +341,7 @@ let transaction; // Declare transaction in outer scope for error handling
     // Find the transaction
     //I have to change this later. made transactionID the value of reference
     // const transaction = await Transaction.findOne({ reference: transactionId });
-     transaction = await Transaction.findOne({ reference: transactionId });
+   const transaction = await Transaction.findOne({ reference: transactionId });
 
 
     
@@ -414,16 +412,13 @@ let transaction; // Declare transaction in outer scope for error handling
     });
 
    
-  throw new Error("Test error handling for paymentError event")
+
 
 
 
   } catch (error) {
     console.error('Error updating delivery status:', error);
     
-   appEmitter.emit('paymentError', transaction)
-
-
 
 
     if (error.statusCode) {
