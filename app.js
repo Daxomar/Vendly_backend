@@ -4,6 +4,11 @@ import { PORT } from './config/env.js';
 import cors from 'cors'
 
 
+// ME IMPORTING THE EVENT EMITTER
+import { appEmitter } from './Lib/eventEmitter.js';
+
+import { logPaymentError } from './utils/logError.js';
+
 
 //ROUTERS
 
@@ -55,6 +60,15 @@ import connectToDatabase from './database/mongodb.js';
 //MIDDLEWARES
 import errorMiddleware from './middlewares/error.middleware.js';
 // import arcjetMiddleware from './middlewares/arcjet.middleware.js';
+
+
+
+appEmitter.on("paymentError", (transaction)=> logPaymentError(transaction))
+
+
+
+
+
 
 
 

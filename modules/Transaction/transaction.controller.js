@@ -1,5 +1,6 @@
 import Transaction from '../../models/transaction.model.js';
 import BulkExport from '../../models/bulkexport.model.js';
+import { appEmitter } from '../../Lib/eventEmitter.js';
 
 
 
@@ -319,11 +320,10 @@ export const getTransactions = async (req, res) => {
 //Update Transactions to delivered button
 
 export const updateDeliveryStatus = async (req, res) => {
+
+let transaction; // Declare transaction in outer scope for error handling
+
   try {
-
-
-    
-    
     const { transactionId } = req.params;
     const { deliveryStatus, failureReason } = req.body;
 
@@ -342,10 +342,13 @@ export const updateDeliveryStatus = async (req, res) => {
 
     // Find the transaction
     //I have to change this later. made transactionID the value of reference
-    const transaction = await Transaction.findOne({ reference: transactionId });
+    // const transaction = await Transaction.findOne({ reference: transactionId });
+     transaction = await Transaction.findOne({ reference: transactionId });
 
 
     
+
+
 
     if (!transaction) {
       return res.status(404).json({
@@ -353,6 +356,9 @@ export const updateDeliveryStatus = async (req, res) => {
         message: 'Transaction not found'
       });
     }
+
+
+
 
     // Check if transaction status is success
     if (transaction.status !== 'success') {
@@ -407,9 +413,19 @@ export const updateDeliveryStatus = async (req, res) => {
       }
     });
 
+   
+  throw new Error("Test error handling for paymentError event")
+
+
+
   } catch (error) {
     console.error('Error updating delivery status:', error);
     
+   appEmitter.emit('paymentError', transaction)
+
+
+
+
     if (error.statusCode) {
       return res.status(error.statusCode).json({
         success: false,
