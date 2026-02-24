@@ -420,7 +420,7 @@ export const resellerLink = async (req, res, next) => {
     if (!user.isAccountVerified) {
       referralURL = "You need to verify your account first";
     } else if (user.isAccountVerified && !user.isApproved) {
-      referralURL = "You need to be Verified and Approved to generate a referral link";
+      referralURL = "Text admin to approve account";
     } else {
       referralURL = `${process.env.FRONTEND_URL}/buy/bundlepurchase?resellerCode=${user.resellerCode}`;
     }
