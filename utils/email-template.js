@@ -198,6 +198,10 @@ export const generateTransactionReceiptTemplate = ({
         If you have any issues, Kindly text our support team at 0543681026.
       </p>
 
+      <p style="margin-top: 20px;">
+       Kindly report any issue or not recieved orders within 24 hours so it can be resolved
+      </p>
+
       <p>Thanks for choosing JoyBundle! 🎉</p>
     </div>
   `;
