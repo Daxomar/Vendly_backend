@@ -8,7 +8,10 @@ import cors from 'cors'
 import { appEmitter } from './Lib/eventEmitter.js';
 
 import { logPaymentError } from './utils/logError.js';
+import { startCronJobs } from "./utils/cronjobs.js"
 
+// after DB connection
+startCronJobs()
 
 //ROUTERS
 
@@ -63,7 +66,8 @@ import errorMiddleware from './middlewares/error.middleware.js';
 
 
 
-appEmitter.on("paymentError", (transaction)=> logPaymentError(transaction))
+
+appEmitter.on("paymentError", (transaction) => logPaymentError(transaction))
 
 
 
@@ -135,7 +139,7 @@ app.use(cookieParser());
 //   if (req.path === '/api/v1/payments/paystack/webhook') {
 //     return next();
 //   }
-  
+
 //   // Apply Arcjet for all other routes
 //   arcjetMiddleware(req, res, next);
 // });
@@ -152,7 +156,7 @@ app.use('/api/v1/order', orderRouter);
 app.use('/api/v1/commissions', commissionRouter);
 app.use('/api/v1/payout', payoutRouter);
 app.use('/api/v1/transaction', transactionRouter);
-app.use('/api/v1/resellerBundlePrice', resellerBundlePriceRouter );
+app.use('/api/v1/resellerBundlePrice', resellerBundlePriceRouter);
 
 
 
@@ -173,4 +177,6 @@ console.log('Server is running on port 5000');
 app.listen(PORT, async () => {
   console.log(`JoyDataBundle is running on  http://localhost:${PORT}`);
   await connectToDatabase();
+  startCronJobs()
+  
 }); 

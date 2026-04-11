@@ -1,6 +1,7 @@
 import User from '../models/user.model.js';
 import Transaction from '../models/transaction.model.js';
 import Commission from '../models/commission.model.js';
+import Bundle from '../models/bundle.model.js';
 import { sendTransactionReceiptEmail } from "../services/emailServices/email.service.js";
 
 
@@ -33,19 +34,21 @@ export async function processWebhookEvent(event) {
             ip_address: event.data.ip_address
         };
 
+
+
         await transaction.save();
 
 
-        //  await sendTransactionReceiptEmail ({
-        //             to: transaction.email,
-
-        //             amount: transaction.amount,
-        //             bundleName: transaction.bundleName,
-        //             reference: reference,
-        //             date: paid_at,
-        //             phoneNumber: transaction.metadata.phoneNumberReceivingData,
-        //             paymentMethod: channel,
-        //         })
+        // ✅ Stock reservation release logic - only after payment confirmed
+        await Bundle.findByIdAndUpdate(
+            transaction.bundleId,
+            {
+                $inc: {
+                    stock: -1,          // real stock decrements
+                    reservedStock: -1,  // reservation released
+                    totalSold: 1        // track sales
+                }
+            });
 
 
         //Fire and forget email sending - don't block main flow
@@ -63,10 +66,10 @@ export async function processWebhookEvent(event) {
         // ✅ Commission logic - only after payment confirmed
         if (transaction.resellerCode && transaction.metadata?.resellerProfit) {
             const commissionAmount = transaction.metadata.resellerProfit;
-            
 
 
-         
+
+
 
 
             try {
@@ -116,7 +119,15 @@ export async function processWebhookEvent(event) {
 
         await transaction.save();
 
-        // ❌ NO commission for failed payments
+        // Just release reservation, real stock was never touched
+        await Bundle.findByIdAndUpdate(
+            transaction.bundleId,
+            { $inc: { reservedStock: -1 } }
+        )
+
+        //  No stock decrement, just reservation release
+        console.log('Transaction failed, reservation released:', reference)
+        //  NO commission for failed payments
         console.log('Transaction failed:', reference);
     }
 

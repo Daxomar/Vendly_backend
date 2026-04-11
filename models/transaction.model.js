@@ -68,7 +68,7 @@ resellerCode: {
 
   status: {
     type: String,
-    enum: ['pending', 'success', 'failed'],
+    enum: ['pending', 'success', 'failed', 'expired'],
     default: 'pending',
     index: true
   },

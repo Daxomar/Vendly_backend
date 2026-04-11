@@ -43,9 +43,10 @@ function makeReference(prefix = 'ref') {
 const SYSTEM_RESELLER_CODE = process.env.SYSTEM_RESELLER_CODE; // Example system reseller code
 
 export async function initializePayment(req, res) {
+    
+    let bundle = null; // Declare here to use in catch block if needed for reservation release
+    
     try {
-
-
         console.log("Payment Migration Completed")
 
         //I will use req.params later when i have a frontend to pass reseller code
@@ -53,6 +54,8 @@ export async function initializePayment(req, res) {
 
         const { email, bundleId, phoneNumberReceivingData, resellerCode, callback_url } = req.body || {};
 
+
+        console.log("Received bundleID:", bundleId);
 
         if (!email || !bundleId || !phoneNumberReceivingData) {
             return res.status(400).json({
@@ -62,26 +65,24 @@ export async function initializePayment(req, res) {
         }
 
         // 1. Fetch bundle details from DB
-        const bundle = await Bundle.findOne({ Bundle_id: bundleId });
+         bundle = await Bundle.findOneAndUpdate(
+            {
+                Bundle_id: bundleId,
+                isActive: true,
+                $expr: { $gt: [{ $subtract: ["$stock", "$reservedStock"] }, 0] } // availableStock > 0
+            },
+            { $inc: { reservedStock: 1 } }, // reserve atomically
+            { new: true }
+        )
+
+        console.log("Bundle fetched and stock reserved:", bundle);
 
         if (!bundle) {
-            return res.status(404).json({
-                status: false,
-                message: "Bundle not found"
-            });
-        }
-
-
-        // Check if bundle is active
-        if (!bundle.isActive) {
             return res.status(400).json({
-                status: false,
-                message: "This bundle is currently unavailable"
-            });
+                success: false,
+                message: "Bundle is out of stock or unavailable"
+            })
         }
-
-
-
 
 
 
@@ -200,12 +201,7 @@ export async function initializePayment(req, res) {
         };
 
 
-        //    if (callback_url){
-        //     payload.callback_url = `${callback_url}?reference=${reference}`
-        //    }
 
-
-        //  commented this out
         //This automatically appends the reference to the callback url paystack does that naturally for us haha 
         if (callback_url) payload.callback_url = callback_url;
 
@@ -221,6 +217,16 @@ export async function initializePayment(req, res) {
         });
 
     } catch (err) {
+
+        // Release reservation if we reserved but something failed after
+        if (bundle) {
+            await Bundle.findByIdAndUpdate(
+                bundle._id,
+                { $inc: { reservedStock: -1 } }
+            )
+        }
+
+
         console.error(err);
         const status = err.response?.status || 500;
         const data = err.response?.data || { status: false, message: err.message };
@@ -277,7 +283,7 @@ export async function handleWebhook(req, res) {
         // Minimal example: log and return 200
         // TODO: replace with your business logic (update DB, fulfill order, etc.)
         console.log('✅Paystack webhook received:', event.data?.reference);
-        
+
 
 
         res.status(200).json({ status: true });

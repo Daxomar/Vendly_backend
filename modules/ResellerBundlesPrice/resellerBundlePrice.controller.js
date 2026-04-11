@@ -77,7 +77,8 @@ export const getBundlesByResellerCode = async (req, res) => {
       price: priceMap[bundle._id.toString()] || bundle.JBSP || bundle.price, // Customer sees final price
       validity: bundle.validity,
       description: bundle.description,
-      isActive: bundle.isActive
+      isActive: bundle.isActive,
+      imageUrl: bundle.imageUrl
     }));
 
     res.json({
