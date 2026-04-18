@@ -282,7 +282,8 @@ export async function handleWebhook(req, res) {
         const event = req.body;
         // Minimal example: log and return 200
         // TODO: replace with your business logic (update DB, fulfill order, etc.)
-        console.log('✅Paystack webhook received:', event.data?.reference);
+        console.log('✅Paystack webhook received:',event.event, event.data?.reference);
+        console.log('Noiseeeee:',event);
 
 
 

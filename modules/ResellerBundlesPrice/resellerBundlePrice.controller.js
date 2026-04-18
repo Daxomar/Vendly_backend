@@ -72,6 +72,7 @@ export const getBundlesByResellerCode = async (req, res) => {
       Data: bundle.Data,
       JBCP : bundle.JBCP,
       JBSP : bundle.JBSP,
+      stock: bundle.stock,
       network: bundle.network,
       volume: bundle.volume,
       price: priceMap[bundle._id.toString()] || bundle.JBSP || bundle.price, // Customer sees final price

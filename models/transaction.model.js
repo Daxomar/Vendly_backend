@@ -14,13 +14,13 @@ const transactionSchema = new mongoose.Schema({
     required: true,
   },
 
-//This is the bundleId i created myself to identify different bundles
-  bundleIdName:{
+  //This is the bundleId i created myself to identify different bundles
+  bundleIdName: {
     type: String,
     required: true,
   },
 
-    JBCP: {
+  JBCP: {
     type: Number,
     required: true,
   },
@@ -30,15 +30,15 @@ const transactionSchema = new mongoose.Schema({
     required: true,
   },
 
-resellerCode: {
+  resellerCode: {
     type: String,
-       // allows multiple nulls
-},
+    // allows multiple nulls
+  },
 
 
-  baseCost:{
-    type:Number,
-    required:true,
+  baseCost: {
+    type: Number,
+    required: true,
   },
 
 
@@ -48,7 +48,7 @@ resellerCode: {
   },
 
 
-    JBProfit: {
+  JBProfit: {
     type: Number,
     required: true,
   },
@@ -63,15 +63,22 @@ resellerCode: {
     type: String,
     required: true,
     unique: true,
-    index:true,
+    index: true,
   },
 
   status: {
     type: String,
-    enum: ['pending', 'success', 'failed', 'expired'],
+    enum: ['pending', 'success', 'failed', 'expired', 'refunding', 'refund_completed'],
     default: 'pending',
     index: true
   },
+
+ refundReference: {
+  type: String,
+  unique: true,
+  sparse: true
+},
+
 
   channel: {
     type: String,
@@ -90,7 +97,7 @@ resellerCode: {
 
 
 
-    // NEW: Delivery tracking
+  // NEW: Delivery tracking
   deliveryStatus: {
     type: String,
     enum: ['pending', 'processing', 'delivered', 'failed'],
@@ -99,18 +106,18 @@ resellerCode: {
   },
   deliveredAt: Date,
   failureReason: String,
- 
+
   exportId: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "ExportJob",
-  index: true
-}
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "ExportJob",
+    index: true
+  }
 
 
 
 
 }, { timestamps: true });
 
- const Transaction = mongoose.model('Transaction', transactionSchema);
+const Transaction = mongoose.model('Transaction', transactionSchema);
 
 export default Transaction;

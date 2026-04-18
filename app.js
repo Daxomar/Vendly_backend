@@ -8,10 +8,10 @@ import cors from 'cors'
 import { appEmitter } from './Lib/eventEmitter.js';
 
 import { logPaymentError } from './utils/logError.js';
-import { startCronJobs } from "./utils/cronjobs.js"
+import { expireTransactions } from './services/emailServices/Jobs/expire.js';
 
 // after DB connection
-startCronJobs()
+expireTransactions()
 
 //ROUTERS
 
@@ -62,6 +62,7 @@ import connectToDatabase from './database/mongodb.js';
 
 //MIDDLEWARES
 import errorMiddleware from './middlewares/error.middleware.js';
+
 // import arcjetMiddleware from './middlewares/arcjet.middleware.js';
 
 
@@ -177,6 +178,6 @@ console.log('Server is running on port 5000');
 app.listen(PORT, async () => {
   console.log(`JoyDataBundle is running on  http://localhost:${PORT}`);
   await connectToDatabase();
-  startCronJobs()
+  expireTransactions()
   
 }); 
