@@ -8,6 +8,8 @@ import Transaction from '../../models/transaction.model.js';
 import { processWebhookEvent } from '../../utils/paymentHelper.js';
 import { getResellerBundlePrice } from '../../utils/getResellerBundlePrice.js'
 import { PAYSTACK_SECRET_KEY } from '../../config/env.js';
+import { processPaymentWebhookEvent, processRefundWebhookEvent } from './payment.service.js';
+import { logWebhookError } from '../../utils/logError.js';
 
 //CHANGE THIS TO YOUR ACTUAL PAYSTACK SECRET KEY IN PRODUCTION
 
@@ -43,9 +45,9 @@ function makeReference(prefix = 'ref') {
 const SYSTEM_RESELLER_CODE = process.env.SYSTEM_RESELLER_CODE; // Example system reseller code
 
 export async function initializePayment(req, res) {
-    
+
     let bundle = null; // Declare here to use in catch block if needed for reservation release
-    
+
     try {
         console.log("Payment Migration Completed")
 
@@ -65,8 +67,9 @@ export async function initializePayment(req, res) {
         }
 
         // 1. Fetch bundle details from DB
-         bundle = await Bundle.findOneAndUpdate(
+        bundle = await Bundle.findOneAndUpdate(
             {
+                
                 Bundle_id: bundleId,
                 isActive: true,
                 $expr: { $gt: [{ $subtract: ["$stock", "$reservedStock"] }, 0] } // availableStock > 0
@@ -282,28 +285,31 @@ export async function handleWebhook(req, res) {
         const event = req.body;
         // Minimal example: log and return 200
         // TODO: replace with your business logic (update DB, fulfill order, etc.)
-        console.log('✅Paystack webhook received:',event.event, event.data?.reference);
-        console.log('Noiseeeee:',event);
+        console.log('✅Paystack webhook received:', event.event, event.data?.reference);
+        console.log('Noiseeeee:', event);
 
 
 
         res.status(200).json({ status: true });
 
-        console.log('✅Paystack 200 response sent back');
+        
 
-        // external Utility function to process webhook asynchronously 
-        processWebhookEvent(event).catch(err => {
-            const errorLog = {
-                timestamp: new Date().toISOString(),
-                reference: event.data?.reference,
-                error: err.message,
-                stack: err.stack
-            };
-
-            // Log to console (Render captures all console output)
-            console.error('⚠️⚠️⚠️  WEBHOOK PROCESSING FAILED PAYMENT SUCCESS BUT MIGHT NOT BE MARKED IN DB⚠️⚠️⚠️:');
-            console.error(JSON.stringify(errorLog, null, 2));
-        })
+        // Route to appropriate handler based on event type
+        if (event.event === 'charge.success' || event.event === 'charge.failed') {
+             console.log('✅Paystack 200 response sent back for payment');
+            processPaymentWebhookEvent(event).catch(err => {
+                logWebhookError(event, err);
+            });
+        }
+        else if (event.event === 'refund.pending' || event.event === 'refund.success' || event.event === 'refund.failed') {
+                console.log('✅Paystack 200 response sent back for refund');
+            processRefundWebhookEvent(event).catch(err => {
+                logWebhookError(event, err);
+            });
+        }
+        else {
+            console.log('Ignoring event:', event.event);
+        }
 
     } catch (err) {
         console.error('Webhook handler error', err);

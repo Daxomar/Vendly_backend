@@ -151,7 +151,7 @@ export async function processWebhookEvent(event) {
                     { reference },
                     {
                         status: 'refunding',
-                        refundReference: refundData.data.reference
+                        refundReference: refundData.data.id
                     }
                 );
 
