@@ -293,7 +293,7 @@ export const processRefundWebhookEvent = async (event) => {
 
     // ← THIS HANDLES refund.pending
     let transactionStatus = 'refunding';
-    if (event.event === 'refund.success') {
+    if (event.event === 'refund.processed') {
         transactionStatus = 'refund_completed';
     } else if (event.event === 'refund.failed') {
         transactionStatus = 'refund_failed';
