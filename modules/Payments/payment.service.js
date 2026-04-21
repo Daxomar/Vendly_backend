@@ -1,21 +1,14 @@
-import User from '../models/user.model.js';
-import Transaction from '../models/transaction.model.js';
-import Commission from '../models/commission.model.js';
-import Bundle from '../models/bundle.model.js';
-import { sendTransactionReceiptEmail } from "../services/emailServices/email.service.js";
-import { PAYSTACK_SECRET_KEY } from '../config/env.js';
-
-
-//Very Temporal Paystack call
-
-
-
-
+import User from '../../models/user.model.js';
+import Transaction from '../../models/transaction.model.js';
+import Commission from '../../models/commission.model.js';
+import Bundle from '../../models/bundle.model.js';
+import { sendTransactionReceiptEmail } from "../../services/emailServices/email.service.js";
+import { PAYSTACK_SECRET_KEY } from '../../config/env.js';
 
 
 
 // Separate async function for processing and Creating Transaction in DB
-export async function processWebhookEvent(event) {
+export const processPaymentWebhookEvent = async (event) => {
     const { reference, status, channel, metadata, paid_at } = event.data;
 
     // Find the pending transaction
@@ -37,7 +30,7 @@ export async function processWebhookEvent(event) {
 
 
 
-    // Handle expired transactions - this means the user took too long to pay and my cronjon expired the transaction and the reservation was released, but they completed payment after. We should refund and not fulfill since reservation was released and stock may be gone.
+    // Handle expired transactions - this means the user took too long to pay and my cronjob expired the transaction and the reservation was released, but they completed payment after. We should refund and not fulfill since reservation was released and stock may be gone.
     if (transaction.status === 'expired') {
         // ✅ ATOMIC - check and process in one operation
         const bundle = await Bundle.findOneAndUpdate(
@@ -151,7 +144,7 @@ export async function processWebhookEvent(event) {
                     { reference },
                     {
                         status: 'refunding',
-                        refundReference: refundData.data.reference
+                        refundReference: refundData.data.id
                     }
                 );
 
@@ -274,25 +267,56 @@ export async function processWebhookEvent(event) {
         console.log('Transaction failed:', reference);
     }
 
-
-
-    //Handle Refund Completion webhook
-    else if (event.event === "refund.pending" || event.event === "refund.success" || event.event === "refund.failed") {
-        transaction.status = event.event;
-        transaction.refundReference = event.data.reference;
-        transaction.provider_response.refundCompletionResponse = {
-            refundReference: event.data.reference,
-            refundStatus: event.data.status,
-            processedAt: event.data.processed_at
-        };
-
-        await transaction.save();
-        console.log('Refund completed for transaction:', reference);
-    }
-
-
     // Log other events but don't process
     else {
         console.log('Ignoring event:', event.event);
     }
 }
+
+
+
+
+export const processRefundWebhookEvent = async (event) => {
+
+      console.log(`Processing refund webhook: ${event.event}`);
+
+    const transactionReference = event.data.transaction_reference;
+    
+    const transaction = await Transaction.findOne({
+        reference: transactionReference
+    });
+
+    if (!transaction) {
+        console.error('Transaction not found for refund:', transactionReference);
+        return;
+    }
+
+    // ← THIS HANDLES refund.pending
+    let transactionStatus = 'refunding';
+    if (event.event === 'refund.success') {
+        transactionStatus = 'refund_completed';
+    } else if (event.event === 'refund.failed') {
+        transactionStatus = 'refund_failed';
+    }
+
+    await Transaction.findByIdAndUpdate(
+        transaction._id,
+        {
+            status: transactionStatus,
+            refundReference: event.data.id,
+            provider_response: {
+                ...transaction.provider_response,
+                refundCompletionResponse: {
+                    refundId: event.data.id,
+                    transactionReference: event.data.transaction_reference,
+                    refundStatus: event.data.status,
+                    processedAt: new Date()
+                }
+            }
+        }
+    );
+
+    console.log(`✅ Refund status updated to ${transactionStatus}:`, transactionReference);
+}
+
+

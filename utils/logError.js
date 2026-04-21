@@ -30,3 +30,21 @@ export const logPaymentError = async (
     console.error('Error logging payment error:', err);
   }
 };
+
+
+
+
+
+
+export const logWebhookError = (event, err) => {
+    const errorLog = {
+        timestamp: new Date().toISOString(),
+        event: event.event,
+        reference: event.data?.reference,
+        error: err.message,
+        stack: err.stack
+    };
+
+    console.error('⚠️⚠️⚠️ WEBHOOK PROCESSING FAILED ⚠️⚠️⚠️:');
+    console.error(JSON.stringify(errorLog, null, 2));
+}
