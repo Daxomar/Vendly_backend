@@ -33,6 +33,12 @@ const bulkExportSchema = new mongoose.Schema({
 
   network: String,
 
+  parentVendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    sparse: true,
+    index: true
+  },
 
   // When the export was created
   createdAt: {

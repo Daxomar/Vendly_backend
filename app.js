@@ -11,7 +11,6 @@ import { logPaymentError } from './utils/logError.js';
 import { expireTransactions } from './services/emailServices/Jobs/expire.js';
 
 // after DB connection
-expireTransactions()
 
 //ROUTERS
 
@@ -51,8 +50,9 @@ import payoutRouter from './modules/Payout/payout.route.js'; //working
 
 import resellerBundlePriceRouter from './modules/ResellerBundlesPrice/resellerBundlePrice.route.js'; //working
 
+import deliveryRouter from './modules/Delivery/delivery.route.js';
 
-
+import storeRouter from './modules/Store/store.route.js';
 
 
 
@@ -159,7 +159,8 @@ app.use('/api/v1/commissions', commissionRouter);
 app.use('/api/v1/payout', payoutRouter);
 app.use('/api/v1/transaction', transactionRouter);
 app.use('/api/v1/resellerBundlePrice', resellerBundlePriceRouter);
-
+app.use('/api/v1/delivery', deliveryRouter);
+app.use('/api/v1/store-config', storeRouter);
 
 
 // Error middleware should be last
@@ -179,6 +180,7 @@ console.log('Server is running on port 5000');
 app.listen(PORT, async () => {
   console.log(`JoyDataBundle is running on  http://localhost:${PORT}`);
   await connectToDatabase();
-  expireTransactions()
+  // expireTransactions() 
+
   
 }); 

@@ -1,7 +1,11 @@
 import jwt from 'jsonwebtoken';
 import User from '../../models/user.model.js'
+import mongoose from 'mongoose';
+import Transaction from '../../models/transaction.model.js';
 import { nanoid } from "nanoid";
 import { sendWelcomeEmail, sendOTPEmail, sendInviteEmail, sendApprovedEmail } from "../../services/emailServices/email.service.js";
+import { success } from 'zod/v4';
+import { fa } from 'zod/v4/locales';
 
 
 export const getReseller = async (req, res, next) => {
@@ -17,7 +21,7 @@ export const getReseller = async (req, res, next) => {
 
     const { id } = req.user
 
-   
+
     const user = await User.findById(id).select('-password');
 
     // const user = await User.findById(req.params.id).select('-password'); // brings eveything out aside from the password of a user
@@ -32,7 +36,7 @@ export const getReseller = async (req, res, next) => {
     let resellerCode = null;
 
 
-     // Only include resellerCode if user is verified and approved
+    // Only include resellerCode if user is verified and approved
     if (user.isAccountVerified && user.isApproved) {
       resellerCode = user.resellerCode;
     }
@@ -74,6 +78,262 @@ export const getReseller = async (req, res, next) => {
   }
 }
 
+export const getResellerDetail = async (req, res) => {
+  try {
+    const { id } = req.params
+    const resellerId = id
+    console.log("Param", req.params)
+    console.log("getResellerDetail Migration Successful",  resellerId, id)
+    const { parentVendor } = req.tenantFilter
+
+    console.log('Fetching reseller detail for:', { resellerId, parentVendor })
+    const pipeline = [
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(resellerId),
+          role: 'user',
+          // parentVendor: new mongoose.Types.ObjectId(parentVendor)
+        }
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { resellerCode: '$resellerCode' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$resellerCode', '$$resellerCode'] }
+              }
+            }
+          ],
+          as: 'transactions'
+        }
+      },
+      {
+        $lookup: {
+          from: 'commissions',
+          let: { resellerId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$reseller', '$$resellerId'] }
+              }
+            }
+          ],
+          as: 'commissions'
+        }
+      },
+      {
+        $lookup: {
+          from: 'payouts',
+          let: { resellerId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ['$reseller', '$$resellerId'] }
+              }
+            }
+          ],
+          as: 'payouts'
+        }
+      },
+      {
+        $addFields: {
+          successfulTxns: {
+            $filter: { input: '$transactions', as: 't', cond: { $eq: ['$$t.status', 'success'] } }
+          },
+          pendingTxns: {
+            $filter: { input: '$transactions', as: 't', cond: { $eq: ['$$t.status', 'pending'] } }
+          },
+          totalCommissionEarned: { $sum: '$commissions.amount' },
+          totalCommissionPaidOut: {
+            $sum: {
+              $map: {
+                input: {
+                  $filter: { input: '$payouts', as: 'p', cond: { $eq: ['$$p.status', 'completed'] } }
+                },
+                as: 'p',
+                in: '$$p.amount'
+              }
+            }
+          },
+          totalTxnCount: { $size: '$transactions' },
+          successTxnCount: {
+            $size: {
+              $filter: { input: '$transactions', as: 't', cond: { $eq: ['$$t.status', 'success'] } }
+            }
+          },
+          pendingTxnCount: {
+            $size: {
+              $filter: { input: '$transactions', as: 't', cond: { $eq: ['$$t.status', 'pending'] } }
+            }
+          },
+          recentTransactions: { $slice: ['$transactions', 5] },
+          recentPayouts: { $slice: ['$payouts', 5] },
+          allCartItems: {
+            $reduce: {
+              input: {
+                $filter: { input: '$transactions', as: 't', cond: { $eq: ['$$t.status', 'success'] } }
+              },
+              initialValue: [],
+              in: { $concatArrays: ['$$value', { $ifNull: ['$$this.cartItems', []] }] }
+            }
+          },
+          thisMonthTxns: {
+            $filter: {
+              input: '$transactions',
+              as: 't',
+              cond: {
+                $and: [
+                  { $eq: ['$$t.status', 'success'] },
+                  {
+                    $gte: ['$$t.createdAt', {
+                      $dateFromParts: {
+                        year: { $year: '$$NOW' },
+                        month: { $month: '$$NOW' },
+                        day: 1
+                      }
+                    }]
+                  }
+                ]
+              }
+            }
+          },
+          lastMonthTxns: {
+            $filter: {
+              input: '$transactions',
+              as: 't',
+              cond: {
+                $and: [
+                  { $eq: ['$$t.status', 'success'] },
+                  {
+                    $gte: ['$$t.createdAt', {
+                      $dateFromParts: {
+                        year:  { $year:  { $subtract: ['$$NOW', 2592000000] } },
+                        month: { $month: { $subtract: ['$$NOW', 2592000000] } },
+                        day: 1
+                      }
+                    }]
+                  },
+                  {
+                    $lt: ['$$t.createdAt', {
+                      $dateFromParts: {
+                        year: { $year: '$$NOW' },
+                        month: { $month: '$$NOW' },
+                        day: 1
+                      }
+                    }]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          availableBalance: { $subtract: ['$totalCommissionEarned', '$totalCommissionPaidOut'] },
+          pendingTransactionRisk: {
+            $cond: [
+              { $gt: ['$totalTxnCount', 0] },
+              { $multiply: [{ $divide: ['$pendingTxnCount', '$totalTxnCount'] }, 100] },
+              0
+            ]
+          },
+          salesVelocity: {
+            $cond: [
+              { $gt: [{ $size: '$lastMonthTxns' }, 0] },
+              {
+                $multiply: [
+                  {
+                    $divide: [
+                      { $subtract: [{ $size: '$thisMonthTxns' }, { $size: '$lastMonthTxns' }] },
+                      { $size: '$lastMonthTxns' }
+                    ]
+                  },
+                  100
+                ]
+              },
+              0
+            ]
+          },
+          thisMonthRevenue: { $sum: '$thisMonthTxns.amount' },
+          lastMonthRevenue: { $sum: '$lastMonthTxns.amount' },
+          totalSalesVolume: { $sum: '$successfulTxns.amount' },
+          totalSalesCount: '$successTxnCount'
+        }
+      },
+      {
+        $project: {
+          password: 0,
+          verifyOtp: 0,
+          verifyOtpExpireAt: 0,
+          resetOtp: 0,
+          resetOtpExpireAt: 0,
+          __v: 0,
+          transactions: 0,
+          commissions: 0,
+          payouts: 0,
+          successfulTxns: 0,
+          pendingTxns: 0,
+          thisMonthTxns: 0,
+          lastMonthTxns: 0
+        }
+      }
+    ]
+
+    const [result] = await User.aggregate(pipeline)
+
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Reseller not found'
+      })
+    }
+
+    // Top 3 products — separate aggregation using resellerCode from result
+    const top3Products = await Transaction.aggregate([
+      {
+        $match: {
+          resellerCode: result.resellerCode,
+          status: 'success'
+        }
+      },
+      { $unwind: '$cartItems' },
+      {
+        $group: {
+          _id: '$cartItems.bundleName',
+          totalUnits: { $sum: '$cartItems.quantity' },
+        }
+      },
+      { $sort: { totalUnits: -1 } },
+      { $limit: 3 },
+      {
+        $project: {
+          _id: 0,
+          bundleName: '$_id',
+          totalUnits: 1,
+        }
+      }
+    ])
+
+    delete result.allCartItems
+    result.top3Products = top3Products.map((p, i) => ({ rank: i + 1, ...p }))
+
+    return res.status(200).json({
+      success: true,
+      data: result
+    })
+
+  } catch (error) {
+    console.error('Error fetching reseller detail:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch reseller detail',
+      error: error.message
+    })
+  }
+}
 
 
 
@@ -82,93 +342,286 @@ export const getReseller = async (req, res, next) => {
 
 //ACCOUNT CREATION BY ADMIN DIRECTLY
 
+// export const getResellers = async (req, res, next) => {
+//   try {
+//     // const { id, email, role } = req.user;
+
+//     const { id, email, role } = req.user;
+//     console.log("getUSer Migration Successful")
+
+
+//     // Pagination setup
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 10;
+//     const skip = (page - 1) * limit;
+
+//     // Search setup
+//     const search = req.query.search ? req.query.search.trim() : "";
+
+//     // Build search query
+//     const query = {
+//       ...(search && {
+//         $or: [
+//           { name: { $regex: search, $options: "i" } },
+//           { email: { $regex: search, $options: "i" } },
+//         ],
+//       }),
+
+//       $and: [
+//         {
+//           $or: [
+//             { Vendor: false },
+//             { Vendor: null },
+//             { Vendor: { $exists: false } },
+//           ],
+//         },
+//       ],
+//     };
+
+//     // Execute queries in parallel for better performance
+//     const [users, totalUsers, analytics] = await Promise.all([
+//       // Fetch paginated users
+//       User.find(query)
+//         .select('-password -accessToken -refreshToken') // Exclude sensitive fields
+//         .skip(skip)
+//         .limit(limit)
+//         .sort({ createdAt: -1 }) // Newest first
+//         .lean(),
+
+//       // Get total count for pagination
+//       User.countDocuments(query),
+
+//       // Get analytics (aggregate all users, not just paginated)
+//       User.aggregate([
+//         {
+//           $group: {
+//             _id: null,
+//             totalCommissionEarned: { $sum: '$totalCommissionEarned' },
+//             totalCommissionPaidOut: { $sum: '$totalCommissionPaidOut' },
+//             totalResellers: { $sum: 1 },
+//             // activeResellers: {
+//             //   $sum: { $cond: [{ $eq: ['$isApproved', true] }, 1, 0] }
+//             // },
+
+//             // Active resellers must have BOTH isApproved AND isAccountVerified as true
+//             activeResellers: {
+//               $sum: {
+//                 $cond: [
+//                   {
+//                     $and: [
+//                       { $eq: ['$isApproved', true] },
+//                       { $eq: ['$isAccountVerified', true] }
+//                     ]
+//                   },
+//                   1,
+//                   0
+//                 ]
+//               }
+//             },
+//             // pendingResellers: {
+//             //   $sum: { $cond: [{ $eq: ['$isApproved', false] }, 1, 0] }
+//             pendingResellers: {
+//               $sum: {
+//                 $cond: [
+//                   {
+//                     $or: [
+//                       { $eq: ['$isApproved', false] },
+//                       { $eq: ['$isAccountVerified', false] }
+//                     ]
+//                   },
+//                   1,
+//                   0
+//                 ]
+//               }
+//             }
+//           }
+//         }
+//       ])
+//     ]);
+
+//     // Handle empty search results or no users
+//     if (!users || users.length === 0) {
+//       return res.status(200).json({
+//         success: true,
+//         data: [],
+//         analytics: {
+//           totalCommissionEarned: 0,
+//           totalCommissionPaidOut: 0,
+//           totalResellers: 0,
+//           activeResellers: 0,
+//           pendingResellers: 0,
+//           availableBalance: 0,
+//           currency: 'GHS'
+//         },
+//         message: search
+//           ? "No users matched your search query"
+//           : "No users found in the database",
+//         pagination: {
+//           currentPage: page,
+//           totalPages: 0,
+//           totalUsers: 0,
+//           limit,
+//           hasNextPage: false,
+//           hasPrevPage: false,
+//           nextPage: null,
+//           prevPage: null,
+//         },
+//       });
+//     }
+
+//     // Clean users model - safe to return to frontend
+//     const safeUsers = users.map(user => ({
+//       _id: user._id,
+//       name: user.name,
+//       email: user.email,
+//       phoneNumber: user.phoneNumber,
+//       role: user.role || 'user',
+//       status: user.isApproved ? 'active' : 'pending',
+//       isApproved: user.isApproved || false,
+//       isAccountVerified: user.isAccountVerified || false,
+//       createdAt: user.createdAt,
+//       totalCommissionEarned: user.totalCommissionEarned || 0,
+//       totalCommissionPaidOut: user.totalCommissionPaidOut || 0,
+//       salesVolume: user.totalCommissionEarned || 0,
+//       availableBalance: (user.totalCommissionEarned || 0) - (user.totalCommissionPaidOut || 0)
+//     }));
+
+//     // Extract analytics data
+//     const analyticsData = analytics[0] || {
+//       totalCommissionEarned: 0,
+//       totalCommissionPaidOut: 0,
+//       totalResellers: 0,
+//       activeResellers: 0,
+//       pendingResellers: 0
+//     };
+
+//     // Calculate available balance across all resellers
+//     const availableBalance = analyticsData.totalCommissionEarned - analyticsData.totalCommissionPaidOut;
+
+//     // Pagination info
+//     const totalPages = Math.ceil(totalUsers / limit);
+//     const hasNextPage = page < totalPages;
+//     const hasPrevPage = page > 1;
+
+//     // Return data with analytics
+//     res.status(200).json({
+//       success: true,
+//       data: safeUsers,
+//       analytics: {
+//         totalCommissionEarned: parseFloat(analyticsData.totalCommissionEarned.toFixed(2)),
+//         totalCommissionPaidOut: parseFloat(analyticsData.totalCommissionPaidOut.toFixed(2)),
+//         totalResellers: analyticsData.totalResellers,
+//         activeResellers: analyticsData.activeResellers,
+//         pendingResellers: analyticsData.pendingResellers,
+//         availableBalance: parseFloat(availableBalance.toFixed(2)),
+//         currency: 'GHS'
+//       },
+//       message: `Here are all the resellers. Request made by admin with id: ${id}`,
+//       pagination: {
+//         currentPage: page,
+//         totalPages,
+//         totalUsers,
+//         limit,
+//         hasNextPage,
+//         hasPrevPage,
+//         nextPage: hasNextPage ? page + 1 : null,
+//         prevPage: hasPrevPage ? page - 1 : null,
+//       }
+//     });
+
+//   } catch (error) {
+//     console.error('Error fetching resellers:', error);
+
+//     // Handle custom errors with statusCode
+//     if (error.statusCode) {
+//       return res.status(error.statusCode).json({
+//         success: false,
+//         message: error.message
+//       });
+//     }
+
+//     // Handle any other unexpected errors
+//     return res.status(500).json({
+//       success: false,
+//       message: 'Internal Server Error',
+//       error: error.message
+//     });
+//   }
+// };
+
 export const getResellers = async (req, res, next) => {
   try {
-    // const { id, email, role } = req.user;
+    const { id, role } = req.user;
 
-    const { id, email, role } = req.user;
-    console.log("getUSer Migration Successful")
-    
-
-    // Pagination setup
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-
-    // Search setup
     const search = req.query.search ? req.query.search.trim() : "";
 
-    // Build search query
-    const query = search
-      ? {
+    // Base query for resellers only
+    const baseQuery = {
+      role: "user",
+      ...(search && {
         $or: [
           { name: { $regex: search, $options: "i" } },
           { email: { $regex: search, $options: "i" } },
         ],
-      }
-      : {};
+      }),
+    };
 
-    // Execute queries in parallel for better performance
+    // Merge with tenant filter if it exists (vendor route)
+    const query = { ...baseQuery, ...req.tenantFilter };
     const [users, totalUsers, analytics] = await Promise.all([
-      // Fetch paginated users
       User.find(query)
-        .select('-password -accessToken -refreshToken') // Exclude sensitive fields
+        .select('-password -accessToken -refreshToken')
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }) // Newest first
+        .sort({ createdAt: -1 })
         .lean(),
 
-      // Get total count for pagination
       User.countDocuments(query),
 
-      // Get analytics (aggregate all users, not just paginated)
       User.aggregate([
+        { $match: query },
         {
           $group: {
             _id: null,
             totalCommissionEarned: { $sum: '$totalCommissionEarned' },
             totalCommissionPaidOut: { $sum: '$totalCommissionPaidOut' },
             totalResellers: { $sum: 1 },
-            // activeResellers: {
-            //   $sum: { $cond: [{ $eq: ['$isApproved', true] }, 1, 0] }
-            // },
-
-            // Active resellers must have BOTH isApproved AND isAccountVerified as true
             activeResellers: {
-              $sum: { 
+              $sum: {
                 $cond: [
-                  { 
+                  {
                     $and: [
                       { $eq: ['$isApproved', true] },
                       { $eq: ['$isAccountVerified', true] }
                     ]
-                  }, 
-                  1, 
+                  },
+                  1,
                   0
-                ] 
+                ]
               }
             },
-            // pendingResellers: {
-            //   $sum: { $cond: [{ $eq: ['$isApproved', false] }, 1, 0] }
-             pendingResellers: {
-              $sum: { 
+            pendingResellers: {
+              $sum: {
                 $cond: [
-                  { 
+                  {
                     $or: [
                       { $eq: ['$isApproved', false] },
                       { $eq: ['$isAccountVerified', false] }
                     ]
-                  }, 
-                  1, 
+                  },
+                  1,
                   0
-                ] }
+                ]
+              }
             }
           }
         }
       ])
     ]);
 
-    // Handle empty search results or no users
     if (!users || users.length === 0) {
       return res.status(200).json({
         success: true,
@@ -182,9 +635,6 @@ export const getResellers = async (req, res, next) => {
           availableBalance: 0,
           currency: 'GHS'
         },
-        message: search
-          ? "No users matched your search query"
-          : "No users found in the database",
         pagination: {
           currentPage: page,
           totalPages: 0,
@@ -198,24 +648,21 @@ export const getResellers = async (req, res, next) => {
       });
     }
 
-    // Clean users model - safe to return to frontend
     const safeUsers = users.map(user => ({
       _id: user._id,
       name: user.name,
-      email: user.email ,
+      email: user.email,
       phoneNumber: user.phoneNumber,
-      role: user.role || 'user',
-      status: user.isApproved ? 'active' : 'pending',
+      resellerCode: user.resellerCode,
+      status: user.isApproved && user.isAccountVerified ? 'active' : 'pending',
       isApproved: user.isApproved || false,
       isAccountVerified: user.isAccountVerified || false,
       createdAt: user.createdAt,
       totalCommissionEarned: user.totalCommissionEarned || 0,
       totalCommissionPaidOut: user.totalCommissionPaidOut || 0,
-      salesVolume: user.totalCommissionEarned || 0,
       availableBalance: (user.totalCommissionEarned || 0) - (user.totalCommissionPaidOut || 0)
     }));
 
-    // Extract analytics data
     const analyticsData = analytics[0] || {
       totalCommissionEarned: 0,
       totalCommissionPaidOut: 0,
@@ -224,15 +671,9 @@ export const getResellers = async (req, res, next) => {
       pendingResellers: 0
     };
 
-    // Calculate available balance across all resellers
     const availableBalance = analyticsData.totalCommissionEarned - analyticsData.totalCommissionPaidOut;
-
-    // Pagination info
     const totalPages = Math.ceil(totalUsers / limit);
-    const hasNextPage = page < totalPages;
-    const hasPrevPage = page > 1;
 
-    // Return data with analytics
     res.status(200).json({
       success: true,
       data: safeUsers,
@@ -245,48 +686,180 @@ export const getResellers = async (req, res, next) => {
         availableBalance: parseFloat(availableBalance.toFixed(2)),
         currency: 'GHS'
       },
-      message: `Here are all the resellers. Request made by admin with id: ${id}`,
       pagination: {
         currentPage: page,
         totalPages,
         totalUsers,
         limit,
-        hasNextPage,
-        hasPrevPage,
-        nextPage: hasNextPage ? page + 1 : null,
-        prevPage: hasPrevPage ? page - 1 : null,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        nextPage: page < totalPages ? page + 1 : null,
+        prevPage: page > 1 ? page - 1 : null,
       }
     });
 
   } catch (error) {
     console.error('Error fetching resellers:', error);
-
-    // Handle custom errors with statusCode
-    if (error.statusCode) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message
-      });
-    }
-
-    // Handle any other unexpected errors
-    return res.status(500).json({
-      success: false,
-      message: 'Internal Server Error',
-      error: error.message
-    });
+    next(error);
   }
 };
 
 
+export const getVendors = async (req, res, next) => {
+  try {
+    const { id, role } = req.user;
+    console.log("getVendors Migration Successful")
 
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+    const search = req.query.search ? req.query.search.trim() : "";
 
+    const query = {
+      role: "vendor",
+      ...(search && {
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { vendorCode: { $regex: search, $options: "i" } },
+        ],
+      }),
+    };
 
+    // Get vendors with their reseller stats
+    const [vendorStats, totalVendors] = await Promise.all([
+      User.aggregate([
+        { $match: query },
+        { $skip: skip },
+        { $limit: limit },
+        
+        // Lookup their resellers
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "parentVendor",
+            as: "resellers"
+          }
+        },
 
+        // Calculate stats
+        {
+          $project: {
+            _id: 1,
+            name: 1,
+            email: 1,
+            vendorCode: 1,
+            phoneNumber: 1,
+            isApproved: 1,
+            isAccountVerified: 1,
+            createdAt: 1,
+            totalCommissionEarned: 1,
+            totalCommissionPaidOut: 1,
+            
+            // Reseller counts
+            totalResellers: { $size: "$resellers" },
+            activeResellers: {
+              $size: {
+                $filter: {
+                  input: "$resellers",
+                  as: "r",
+                  cond: {
+                    $and: [
+                      { $eq: ["$$r.isApproved", true] },
+                      { $eq: ["$$r.isAccountVerified", true] }
+                    ]
+                  }
+                }
+              }
+            },
+            pendingResellers: {
+              $size: {
+                $filter: {
+                  input: "$resellers",
+                  as: "r",
+                  cond: {
+                    $or: [
+                      { $eq: ["$$r.isApproved", false] },
+                      { $eq: ["$$r.isAccountVerified", false] }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
 
+        { $sort: { createdAt: -1 } }
+      ]),
 
+      User.countDocuments(query)
+    ]);
 
+    if (!vendorStats || vendorStats.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: search ? "No vendors matched your search" : "No vendors found",
+        pagination: {
+          currentPage: page,
+          totalPages: 0,
+          totalVendors: 0,
+          limit,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+      });
+    }
 
+    // Map to table format
+    const safeVendors = vendorStats.map(vendor => ({
+      _id: vendor._id,
+      name: vendor.name,
+      email: vendor.email,
+      phoneNumber: vendor.phoneNumber,
+      vendorCode: vendor.vendorCode,
+      status: vendor.isApproved && vendor.isAccountVerified ? 'active' : 'pending',
+      isApproved: vendor.isApproved,
+      isAccountVerified: vendor.isAccountVerified,
+      
+      // Table columns
+      totalResellers: vendor.totalResellers,
+      activeResellers: vendor.activeResellers,
+      pendingResellers: vendor.pendingResellers,
+      totalCommissionEarned: vendor.totalCommissionEarned || 0,
+      totalCommissionPaidOut: vendor.totalCommissionPaidOut || 0,
+      availableBalance: (vendor.totalCommissionEarned || 0) - (vendor.totalCommissionPaidOut || 0),
+      
+      createdAt: vendor.createdAt,
+    }));
+
+    const totalPages = Math.ceil(totalVendors / limit);
+
+    res.status(200).json({
+      success: true,
+      data: safeVendors,
+      message: `All vendors (${totalVendors} total)`,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalVendors,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+        nextPage: page < totalPages ? page + 1 : null,
+        prevPage: page > 1 ? page - 1 : null,
+      }
+    });
+
+  } catch (error) {
+    console.error("Error Getting Vendors:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Server Error"
+    });
+  }
+};
 
 
 export const creatAccountByAdmin = async (req, res, next) => {
@@ -414,15 +987,15 @@ export const resellerLink = async (req, res, next) => {
       await user.save();
     }
 
-  let referralURL;
+    let referralURL;
 
-  // Check verification and approval status
+    // Check verification and approval status
     if (!user.isAccountVerified) {
       referralURL = "You need to verify your account first";
     } else if (user.isAccountVerified && !user.isApproved) {
       referralURL = "Text admin to approve account";
     } else {
-      referralURL = `${process.env.FRONTEND_URL}/buy/bundlepurchase?resellerCode=${user.resellerCode}`;
+      referralURL = `${process.env.FRONTEND_URL}/store/shop?resellerCode=${user.resellerCode}`;
     }
 
     return res.status(200).json({
@@ -436,6 +1009,56 @@ export const resellerLink = async (req, res, next) => {
   }
 };
 
+
+export const vendorlink = async (req, res, next) => {
+  try {
+    // const userId = req.user.id; // Auth middleware sets this
+
+    // const { userId } = req.query; // instead of req.body// for now until i set the middleware properly will manually send the userId in the query string
+
+
+    console.log("resellerLink Migration Successful")
+
+
+    const { id, email, role } = req.user;
+    const userId = id
+
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+    // if (userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Generate vendorCode if not exists
+    if (!user.vendorCode || user.vendorCode.trim() === "") {
+      const safeName = `${user.name}-VD` || "USER";
+      const prefix = safeName.substring(0, 4).toUpperCase(); // first 4 letters
+      user.vendorCode = `${prefix}-${nanoid(6)}`; // e.g., JOHN-a1b2c3
+      await user.save();
+    }
+
+    let referralURL;
+
+    // Check verification and approval status
+    if (!user.isAccountVerified) {
+      referralURL = "You need to verify your account first";
+    } else if (user.isAccountVerified && !user.isApproved) {
+      referralURL = "Text admin to approve account";
+    } else {
+      // referralURL = `${process.env.FRONTEND_URL}/store/shop?vendorCode =${user.vendorCode }`;
+      referralURL = `${process.env.FRONTEND_URL}/reseller-auth/register?vendorCode =${user.vendorCode}`;
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "vendor invite link generated successfully",
+      referralURL,
+    });
+  } catch (err) {
+    console.error("Error generating referral link:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
 
 
 
@@ -545,8 +1168,6 @@ export const inviteReseller = async (req, res) => {
 export const approveReseller = async (req, res) => {
   try {
     const { id } = req.user
-    
-
     const { userId } = req.params;
 
     const user = await User.findById(userId);
@@ -571,13 +1192,13 @@ export const approveReseller = async (req, res) => {
 
 
     // Send approved email notification
-//     sendApprovedEmail({
-//       to: user.email,
-//       userName: user.name,
-//       loginUrl: `${process.env.FRONTEND_URL}/auth/login`
-//     }).catch(err => {
-//   console.error("Failed to send Approval Email :", err);
-// });;
+    //     sendApprovedEmail({
+    //       to: user.email,
+    //       userName: user.name,
+    //       loginUrl: `${process.env.FRONTEND_URL}/auth/login`
+    //     }).catch(err => {
+    //   console.error("Failed to send Approval Email :", err);
+    // });;
 
     return res.status(200).json({
       success: true,
@@ -611,6 +1232,54 @@ export const approveReseller = async (req, res) => {
     });
   }
 }
+
+
+export const approveVendor = async (req, res) => {
+  try {
+    const { id } = req.user
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (user.isApproved) return res.status(409).json({
+      message: "User already approved"
+    })
+
+
+    if (user.role !== 'vendor') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only vendors can be approved'
+      });
+    }
+
+
+    if (!user.vendorCode || user.vendorCode.trim() === "") {
+      const safeName = user.name || "Vendor";
+      const prefix = safeName.substring(0, 4).toUpperCase(); // first 4 letters
+      user.vendorCode = `${prefix}-${nanoid(6)}`; // e.g., JOHN-a1b2c3
+      //Approve the vendor
+      user.isApproved = true;
+      await user.save();
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Vendor Approved Successfully",
+    })
+
+  } catch (error) {
+    console.error('Error Updating Vendor as approved:', error);
+    // Handle custom errors with statusCode
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message
+      });
+    }
+  }
+}
+
 
 
 export const rejectReseller = async (req, res) => {
@@ -654,7 +1323,7 @@ export const rejectReseller = async (req, res) => {
         name: user.name,
         email: user.email,
         isRejected: true,
-        rejectedAt:new Date(),
+        rejectedAt: new Date(),
 
         // rejectionReason: user.rejectionReason  will add this later
       }

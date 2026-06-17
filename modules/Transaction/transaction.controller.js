@@ -260,7 +260,8 @@ export const getTransactions = async (req, res) => {
       return {
         transactionId: transaction.reference,
         dateTime: transaction.createdAt,
-        customer: transaction.metadata?.phoneNumberReceivingData || 'N/A',
+        customer: transaction.deliveryDetails?.fullName || 'N/A',
+        phoneNumber: transaction.deliveryDetails?.phone || 'N/A',
         network: transaction.metadata?.network?.toUpperCase() || 'N/A',
         bundleName: transaction.bundleName,
         JBProfit: transaction.JBProfit,
@@ -272,7 +273,8 @@ export const getTransactions = async (req, res) => {
         currency: transaction.currency,
         resellerName: transaction.metadata?.resellerName || 'N/A',
         resellerProfit: transaction.metadata?.resellerProfit || 0,
-        bundleData: transaction.metadata?.bundleData || 'N/A'
+        bundleData: transaction.metadata?.bundleData || 'N/A',
+        
       };
     });
 

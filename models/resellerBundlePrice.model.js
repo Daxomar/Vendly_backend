@@ -31,26 +31,32 @@ const resellerBundlePriceSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  parentVendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    sparse: true,
+    index: true
+  },
 }, {
   timestamps: true
 });
 
 // Compound unique index - one price per reseller per bundle
 resellerBundlePriceSchema.index(
-  { resellerId: 1, bundleId: 1 }, 
+  { resellerId: 1, bundleId: 1 },
   { unique: true }
 );
 
 // Pre-save validation and auto-calculate commission
-resellerBundlePriceSchema.pre('save', function(next) {
+resellerBundlePriceSchema.pre('save', function (next) {
   // Validate custom price >= base price
   if (this.customPrice < this.basePriceSnapshot) {
     return next(new Error(
       `Custom price (${this.customPrice}) cannot be lower than base price (${this.basePriceSnapshot})`
     ));
   }
-  
+
   // Auto-calculate commission
   this.commission = this.customPrice - this.basePriceSnapshot;
   next();

@@ -7,41 +7,31 @@ import { JWT_EXPIRES_IN, JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV } from "../../
 import { sendWelcomeEmail, sendOTPEmail } from "../../services/emailServices/email.service.js";
 import { generateTokens } from '../../utils/token_util.js';  ///NEW IMPORT
 
-
-// import { NODE_ENV, } from "../config/env.js";   //might have to uncomment this later as well as dotenv not sure
-
-
 //USER REGISTERING AN ACCOUNT THEMSELVES
 export const signUp = async (req, res, next) => {
     const session = await mongoose.startSession();
-    session.startTransaction(); // I actually learnt this in class for relational dbs, makes the database atomic
-    //all or nothing, no halfway authentications, it either works or it doesn't
-
-
+    session.startTransaction();
 
     // So that we don't have to send empty details to the server
-    const { name, email, phoneNumber, password } = req.body;
+    const { name, email, phoneNumber, password, parentVendorCode } = req.body;
 
-    if (!name || !email || !password || !phoneNumber) {
+    if (!name || !email || !password || !phoneNumber || !parentVendorCode) {
         return res.json({
             success: false,
             message: "Missing details, please provide them all"
         });
     }
 
-
+    console.log("Parent Vendor Code", parentVendorCode)
 
     try {
         //Check if user already exists
         const existingUser = await User.findOne({ email });
-
         if (existingUser) {
             const error = new Error('User already exists')
             error.statusCode = 409;
             throw error;
         }
-
-
         const existingPhoneNumber = await User.findOne({ phoneNumber });
 
         if (existingPhoneNumber) {
@@ -50,10 +40,21 @@ export const signUp = async (req, res, next) => {
             throw error;
         }
 
+        const vendor = await User.findOne({
+            vendorCode: parentVendorCode,
+            role: 'vendor'
+        }).select('name phoneNumber email vendorCode _id')
+
+        if (!vendor) {
+            const error = new Error('Vendor not found')
+            error.statusCode = 404
+            throw error
+        }
+
         //If newuser doesn't already exit continue flow and hash created passwords
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        const newUsers = await User.create([{ name, email, password: hashedPassword, phoneNumber }], { session }); // I might change this later for just singleNewUser creation
+        const newUsers = await User.create([{ name, email, password: hashedPassword, phoneNumber, parentVendor: vendor._id }], { session }); // I might change this later for just singleNewUser creation
         // const token = jwt.sign({id: newUsers[0]._id }, JWT_SECRET, {expiresIn: JWT_EXPIRES_IN});
         // const token = jwt.sign({ id: newUsers[0]._id, role: newUsers[0].role, email: newUsers[0].email, isAccountVerified: newUsers[0].isAccountVerified }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
@@ -70,8 +71,10 @@ export const signUp = async (req, res, next) => {
             email: newUsers[0].email,
             phoneNumber: newUsers[0].phoneNumber,
             role: 'user',// Always set to 'user', ignore req.body.role
+            vendor_business_name: vendor.name,
             isAccountVerified: newUsers[0].isAccountVerified,
             createdAt: newUsers[0].createdAt,
+            // default to false if not provided
         };
 
 
@@ -79,32 +82,6 @@ export const signUp = async (req, res, next) => {
         newUsers[0].accessToken = tokens.accessToken;
         newUsers[0].refreshToken = tokens.refreshToken;
 
-
-
-        //res.cookies // don't forget to set cookies here later
-        // res.cookie('token', token, {
-        //     httpOnly: true,
-        //     secure: process.env.NODE_ENV === 'production', //only send cookie over https
-        //     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
-        //     maxAge: 1000 * 60 * 60 * 24 * 7, //1 week 
-        // })
-
-        //         // // store access token in cookie (short-lived)
-        // res.cookie('token', tokens.accessToken, {
-        //     httpOnly: true,
-        //     secure: true, //only send cookie over https
-        //     sameSite: 'none',    // more look into this later!!!!!!
-        //     maxAge: 1000 * 60 * 60, //1h
-        // });
-
-
-        //      // // store refresh token in cookie (long-lived)
-        // res.cookie('refreshToken', tokens.refreshToken, {
-        //     httpOnly: true,
-        //     secure: true, //only send cookie over https!!!
-        //     sameSite: 'none',    // more look into this later!!!
-        //     maxAge: 1000 * 60 * 60 * 24 * 7, //1 week
-        // });
 
 
         const isProduction = NODE_ENV === 'production';
@@ -127,9 +104,6 @@ export const signUp = async (req, res, next) => {
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
         });
-
-
-
 
 
         // Sends the welcome email 
@@ -157,8 +131,118 @@ export const signUp = async (req, res, next) => {
 
 }
 
+//VENDOR REGISTERING AN ACCOUNT THEMSELVES
+export const vendorSignUp = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
+    // Vendor-specific fields
+    const { businessName, email, phoneNumber, password } = req.body;
 
+    if (!businessName || !email || !password || !phoneNumber) {
+        return res.json({
+            success: false,
+            message: "Missing details, please provide them all"
+        });
+    }
+
+    try {
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+
+        if (existingUser) {
+            const error = new Error('Email already registered')
+            error.statusCode = 409;
+            throw error;
+        }
+
+        const existingPhoneNumber = await User.findOne({ phoneNumber });
+
+        if (existingPhoneNumber) {
+            const error = new Error('Phone number already exists')
+            error.statusCode = 409;
+            throw error;
+        }
+
+        // Hash password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Create new vendor user with only vendor-specific fields
+        const newVendor = await User.create(
+            [{
+                name: businessName,
+                email,
+                phoneNumber,
+                password: hashedPassword,
+                role: "vendor",
+                vendorCode: null, // Will be generated on admin approval
+                // NOT including reseller-specific fields:
+                // resellerCode, parentVendorCode, commissionRate, totalCommissionEarned, totalCommissionPaidOut
+            }],
+            { session }
+        );
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // Safe vendor instance
+        const safeVendor = {
+            _id: newVendor[0]._id,
+            name: newVendor[0].name,
+            email: newVendor[0].email,
+            phoneNumber: newVendor[0].phoneNumber,
+            role: "vendor",
+            vendorCode: newVendor[0].vendorCode,
+            isAccountVerified: newVendor[0].isAccountVerified,
+            createdAt: newVendor[0].createdAt,
+        };
+
+        // Generate tokens
+        const tokens = generateTokens(newVendor[0]);
+
+        const isProduction = NODE_ENV === 'production';
+
+        // Set cookies
+        res.cookie('token', tokens.accessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'lax' : 'lax',
+            domain: isProduction ? '.joydatabundle.com' : undefined,
+            maxAge: 1000 * 60 * 60,
+            path: '/',
+        });
+
+        res.cookie('refreshToken', tokens.refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'lax' : 'lax',
+            domain: isProduction ? '.joydatabundle.com' : undefined,
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+            path: '/',
+        });
+
+        // Send welcome email
+        sendWelcomeEmail({
+            to: email,
+            userName: businessName
+        }).catch(err => {
+            console.error("Failed to send welcome email:", err);
+        });
+
+        // Send response
+        res.status(201).json({
+            success: true,
+            message: 'Vendor account created successfully',
+            user: safeVendor,
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+        next(error);
+    }
+};
 
 
 //USER TRYING TO LOG INTO AN THIER ACCOUNT

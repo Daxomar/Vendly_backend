@@ -21,11 +21,11 @@ const bundleSchema = new mongoose.Schema(
     // ── Stock & Availability ─────────────────────────
     stock: { type: Number, default: 0 },
     reservedStock: { type: Number, default: 0 },   // locked by pending payments
-    
+
     isActive: { type: Boolean, default: true, index: true },
 
     // ── Categorization ───────────────────────────────
-    category: { type: String },               // Data, Voice, Combo
+    category: { type: String, default: "General" },               // Data, Voice, Combo
     tags: [{ type: String }],             // ["student", "weekend"]
     recommendedRange: { type: String },
 
@@ -40,6 +40,12 @@ const bundleSchema = new mongoose.Schema(
       }
     ],
 
+    parentVendor: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      sparse: true,
+      index: true
+    },
 
     // ── Display & Marketing ──────────────────────────
     description: { type: String },

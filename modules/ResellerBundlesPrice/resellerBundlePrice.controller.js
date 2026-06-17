@@ -6,14 +6,14 @@ import User from '../../models/user.model.js';
 
 //.ENV THIS GOES TO LATER HOHO
 // const SYSTEM_RESELLER_CODE = process.env.SYSTEM_RESELLER_CODE 
-const SYSTEM_RESELLER_CODE = process.env.SYSTEM_RESELLER_CODE ; // Example system reseller code
+const SYSTEM_RESELLER_CODE = process.env.SYSTEM_RESELLER_CODE; // Example system reseller code
 
 
 export const getBundlesByResellerCode = async (req, res) => {
   try {
     const { resellerCode } = req.params;
 
-      console.log('ResellerBundlePrice Migration Successful')
+    console.log('ResellerBundlePrice Migration Successful')
 
 
     // 1. Reject direct usage of system code (if user tried to pass it)
@@ -23,39 +23,39 @@ export const getBundlesByResellerCode = async (req, res) => {
         message: 'MotherFucker you cannot use the system reseller code here directly via the URL be smarter'
       });
     }
-    
+
     // Now the FallBack happens when i want it to
     const codeToUse = resellerCode || SYSTEM_RESELLER_CODE;
 
 
-   
+
 
     // Find reseller by code
-    const reseller = await User.findOne({ 
+    const reseller = await User.findOne({
       resellerCode: codeToUse,
       role: 'user',
       ...(resellerCode && { isSystemAccount: { $ne: true } })
       // Assuming resellers have role 'user'
-    //   isAccountVerified: true 
+      //   isAccountVerified: true 
     });
 
 
-    
+
 
     if (!reseller) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Reseller not found' 
+        message: 'Reseller not found'
       });
     }
     // Get all active bundles
-    const bundles = await Bundle.find({ isActive: true }).sort({ network: 1, JBCP: 1 });
+    const bundles = await Bundle.find({ parentVendor:reseller.parentVendor, isActive: true }).sort({ network: 1, JBCP: 1 });
 
 
     // Get reseller's custom prices
-    const customPrices = await ResellerBundlePrice.find({ 
+    const customPrices = await ResellerBundlePrice.find({
       resellerId: reseller._id,
-      isActive: true 
+      isActive: true
     });
 
     // Create price lookup map
@@ -69,31 +69,36 @@ export const getBundlesByResellerCode = async (req, res) => {
       _id: bundle._id,
       Bundle_id: bundle.Bundle_id,
       name: bundle.name,
-      Data: bundle.Data,
-      JBCP : bundle.JBCP,
-      JBSP : bundle.JBSP,
-      stock: bundle.stock,
       network: bundle.network,
-      volume: bundle.volume,
-      price: priceMap[bundle._id.toString()] || bundle.JBSP || bundle.price, // Customer sees final price
-      validity: bundle.validity,
+      Data: bundle.Data,
+      size: bundle.size,
+      Duration: bundle.Duration,
+      category: bundle.category,
+      tags: bundle.tags,
+      recommendedRange: bundle.recommendedRange,
       description: bundle.description,
+      imageUrl: bundle.imageUrl,
+      publicId: bundle.publicId,
+      images: bundle.images,
+      isFeatured: bundle.isFeatured,
+      isBestSeller: bundle.isBestSeller,
+      stock: bundle.stock,
       isActive: bundle.isActive,
-      imageUrl: bundle.imageUrl
+      price: priceMap[bundle._id.toString()] || bundle.JBSP || bundle.price, // Customer sees final price
     }));
 
     res.json({
       success: true,
       data: bundlesForCustomer,
-      
+
     });
 
   } catch (error) {
     console.error('Get bundles by reseller code error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Failed to fetch bundles',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -110,15 +115,15 @@ export const getBundlesByResellerCode = async (req, res) => {
 
 export const getResellerPricing = async (req, res) => {
   try {
-    const { id } = req.user 
-   const resellerId = id;
+    const { id } = req.user
+    const resellerId = id;
     // Get all active bundles
     const bundles = await Bundle.find({ isActive: true });
 
     // Get reseller's custom prices
-    const customPrices = await ResellerBundlePrice.find({ 
+    const customPrices = await ResellerBundlePrice.find({
       resellerId,
-      isActive: true 
+      isActive: true
     });
 
     // Create price lookup map
@@ -134,7 +139,7 @@ export const getResellerPricing = async (req, res) => {
     // Merge bundle data with pricing
     const bundlesWithPricing = bundles.map(bundle => {
       const pricing = priceMap[bundle._id.toString()];
-      
+
       return {
         _id: bundle._id,
         name: bundle.name,
@@ -157,10 +162,10 @@ export const getResellerPricing = async (req, res) => {
 
   } catch (error) {
     console.error('Get reseller pricing error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Failed to fetch pricing',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -174,32 +179,32 @@ export const setCustomPrice = async (req, res) => {
   try {
     // const resellerId = req.user._id;
 
-     const { id } = req.user
+    const { id } = req.user
     const resellerId = id;
     const { bundleId, customPrice } = req.body;
 
     // Validation
     if (!bundleId || customPrice === undefined) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Bundle ID and custom price are required' 
+        message: 'Bundle ID and custom price are required'
       });
     }
 
     // Get bundle to validate
     const bundle = await Bundle.findById(bundleId);
     if (!bundle) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: 'Bundle not found' 
+        message: 'Bundle not found'
       });
     }
 
     // Validate price >= base price
     if (customPrice <= bundle.JBSP) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: `Custom price (${customPrice}) must be more than the base price (${bundle.JBSP})` 
+        message: `Custom price (${customPrice}) must be more than the base price (${bundle.JBSP})`
       });
     }
 
@@ -211,10 +216,10 @@ export const setCustomPrice = async (req, res) => {
         basePriceSnapshot: bundle.JBSP,
         commission: customPrice - bundle.JBSP
       },
-      { 
-        upsert: true, 
+      {
+        upsert: true,
         new: true,
-        runValidators: true 
+        runValidators: true
       }
     );
 
@@ -231,10 +236,10 @@ export const setCustomPrice = async (req, res) => {
 
   } catch (error) {
     console.error('Set custom price error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
       message: 'Failed to update price',
-      error: error.message 
+      error: error.message
     });
   }
 };

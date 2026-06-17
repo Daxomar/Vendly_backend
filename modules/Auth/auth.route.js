@@ -1,5 +1,5 @@
 import { Router} from 'express';
-import { signUp, signIn, signOut, sendVerifyOtp, verifyEmail, isAuthenicated, sendResetOtp, resetPassword, verifyresetOtp,  refresh } from '../Auth/auth.controller.js';
+import { signUp, signIn, signOut, sendVerifyOtp, verifyEmail, isAuthenicated, sendResetOtp, resetPassword, verifyresetOtp,  refresh, vendorSignUp } from '../Auth/auth.controller.js';
 // import arcjetMiddleware from '../middlewares/arcjet.middleware.js';
 import {userAuthCookie, protect} from '../../middlewares/auth.middleware.js';
 import { strictLimiter, strictLimiterIpBased, generalLimiter,lenientLimiter} from "../../middlewares/ratelimiter.middleware.js";
@@ -8,6 +8,7 @@ import { strictLimiter, strictLimiterIpBased, generalLimiter,lenientLimiter} fro
 const authRouter = Router();
 authRouter.post('/refresh', lenientLimiter, refresh);
 authRouter.post('/sign-up', strictLimiterIpBased, signUp);
+authRouter.use('/vendor/sign-up', strictLimiterIpBased, vendorSignUp); // Apply rate limiter to all vendor sign-up routes
 authRouter.post('/sign-in', strictLimiterIpBased, signIn);
 authRouter.post('/sign-out', protect,strictLimiter, signOut);
 authRouter.post('/send-verify-otp', protect, strictLimiter, sendVerifyOtp);

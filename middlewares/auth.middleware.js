@@ -13,16 +13,16 @@ export const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
       console.log("check your req.users")
-      return res.status(401).json({ 
-        code: "UNAUTHORIZED", 
-        message: "You must be logged in" 
+      return res.status(401).json({
+        code: "UNAUTHORIZED",
+        message: "You must be logged in"
       });
     }
 
     const userRole = req.user.role;
     if (!allowedRoles.includes(userRole)) {
-      return res.status(403).json({ 
-        code: "INSUFFICIENT_PERMISSIONS", 
+      return res.status(403).json({
+        code: "INSUFFICIENT_PERMISSIONS",
         message: `Access denied: requires role(s) ${allowedRoles.join(", ")}`
       });
     }
@@ -36,39 +36,78 @@ export const authorizeRoles = (...allowedRoles) => {
 
 
 // THIRD ONE I CREATED V3  //works for access token
+// export const protect = async (req, res, next) => {
+//   try {
+//     const { token } = req.cookies;
+
+//     if (!token) return res.status(401).json({ message: 'Unauthorized, login again' });
+
+
+
+
+//     const tokenDecoded = jwt.verify(token, JWT_SECRET);
+
+
+//     if (tokenDecoded) {
+//       req.user = {
+//         id: tokenDecoded.id,
+//         email: tokenDecoded.email,
+//         role: tokenDecoded.role,
+//         isAccountVerified: tokenDecoded.isAccountVerified
+//       };
+//     } else {
+//       return res.status(401).json({ message: 'Unauthorized, login again' });
+//     }
+
+//     next();
+
+//   } catch (error) {
+
+//     return res.status(401).json({ message: 'Forbidden: invalid or expired token', error: error.message })
+
+//   }
+
+// }
+
+
+
+
+
+// THIRD ONE I CREATED V3.1 //works for access token
 export const protect = async (req, res, next) => {
-      
-    const {token} = req.cookies;
-
-    if(!token) return res.status(401).json({message: 'Unauthorized, login again'});
+  try {
+    const { token } = req.cookies;
     
+    if (!token) {
+      return res.status(401).json({ message: 'Unauthorized, login again' });
+    }
 
-     
-    try{
-    const tokenDecoded = jwt.verify(token, JWT_SECRET);
+    let tokenDecoded;
+    try {
+      tokenDecoded = jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Unauthorized, token expired' });
+      }
+      throw error;
+    }
 
-    
-    if(tokenDecoded){
+    if (tokenDecoded) {
       req.user = {
         id: tokenDecoded.id,
-        email:tokenDecoded.email,
-        role:tokenDecoded.role,
+        email: tokenDecoded.email,
+        role: tokenDecoded.role,
         isAccountVerified: tokenDecoded.isAccountVerified
-       };
-    }else{
-        return res.status(401).json({message: 'Unauthorized, login again'});
-      }
+      };
+      next();
+    } else {
+      return res.status(401).json({ message: 'Unauthorized, login again' });
+    }
 
-    next(); 
-
-}catch(error){
-
-    return res.status(401).json({message: 'Forbidden: invalid or expired token', error: error.message})
-
-}
-
-}
-
+  } catch (error) {
+    return res.status(401).json({ message: 'Forbidden: invalid or expired token', error: error.message });
+  }
+};
 
 
 
@@ -76,27 +115,27 @@ export const protect = async (req, res, next) => {
 
 // SECOND ONE I CREATED V2
 export const userAuthCookie = async (req, res, next) => {
-      
-    const {token} = req.cookies;
-    if(!token) return res.status(401).json({message: 'Unauthorized, login again'});
 
-     
-    try{
+  const { token } = req.cookies;
+  if (!token) return res.status(401).json({ message: 'Unauthorized, login again' });
+
+
+  try {
     const tokenDecoded = jwt.verify(token, JWT_SECRET);
 
-    if(tokenDecoded.id){
+    if (tokenDecoded.id) {
       req.body.userId = tokenDecoded.id;
-    }else{
-        return res.status(401).json({message: 'Unauthorized, login again'});
-      }
+    } else {
+      return res.status(401).json({ message: 'Unauthorized, login again' });
+    }
 
-    next(); 
+    next();
 
-}catch(error){
+  } catch (error) {
 
-    return res.status(401).json({message: 'Unauthorized, login again', error: error.message})
+    return res.status(401).json({ message: 'Unauthorized, login again', error: error.message })
 
-}
+  }
 
 }
 
@@ -118,28 +157,28 @@ export const userAuthCookie = async (req, res, next) => {
 /// I used this when i manually added the bearer token in postman to test protected routes
 //LOL this was the first one i created my baby 
 //V1
-export const authorize = async (req, res, next) =>{
-    try{
+export const authorize = async (req, res, next) => {
+  try {
 
-        let token; 
-        if(req.headers.authorization && req.headers.authorization.startsWith('Bearer')){
-            token = req.headers.authorization.split(' ')[1];
-        }
-
-        if(!token) return res.status(401).json({message: 'Unauthorized'});
-
-        const decoded = jwt.verify(token, JWT_SECRET);
-
-        const user = await User.findById(decoded.userId);
-
-        if (!user) return res.status(401).json({ message: 'Unauthorized' });
-
-        req.user = user;
-        
-        next();
-
-    }catch(error){
-
-        res.status(401).json({message: 'Unauthorized', error: error.message})
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
     }
+
+    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const user = await User.findById(decoded.userId);
+
+    if (!user) return res.status(401).json({ message: 'Unauthorized' });
+
+    req.user = user;
+
+    next();
+
+  } catch (error) {
+
+    res.status(401).json({ message: 'Unauthorized', error: error.message })
+  }
 }

@@ -14,7 +14,12 @@ const CommissionSchema = new mongoose.Schema({
      },
 
 
-
+        parentVendor: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            sparse: true,
+            index:true
+        },
 
 
 

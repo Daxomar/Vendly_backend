@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import redis from '../../database/reddis.js';
 import Bundle from '../../models/bundle.model.js'
 import ResellerBundlePrice from '../../models/resellerBundlePrice.model.js';
 import { createBundleService } from './bundle.service.js';
@@ -9,17 +10,31 @@ import { uploadImage } from '../../utils/uploadImage.js';
 
 
 
+//UTILITY WILL MOVE IT LATER
+const updateFeaturedBundlesCache = async () => {
+  try{
+    const featuredBundles = await Bundle.find({ isFeatured: true, isActive: true }).sort({ network: 1, JBCP: 1 }).lean();
+    await redis.set("featuredBundles", JSON.stringify(featuredBundles));
+  }catch(error){
+    console.log("Error updating featured bundles cache", error.message)
+    throw error;
+  }
+}
+
+
+
+
 export const createBundleInDb = async (req, res, next) => {
   // const { Bundle_id, Data, name, JBCP, JBSP, network, size, Duration,  recommendedRange } = req.body;
 
   try {
-   
+
     //testing it out here cleaner version
     // const NewBundle = await createBundleService(req.body)
     const NewBundle = await createBundleService(req.body, req.file) // Pass file for image upload if needed
-    
+
     //responding 
-      res.status(201).json({
+    res.status(201).json({
       success: true,
       message: "Bundle created successfully",
       data: NewBundle
@@ -70,12 +85,12 @@ export const createBundleInDb = async (req, res, next) => {
   } catch (error) {
     next(error);
     console.log(error)
-   if(error.statusCode){
-    return res.status(error.statusCode).json({
-      success: false,
-      message: "Bundle Creation Failed"
-    })
-   }
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: "Bundle Creation Failed"
+      })
+    }
 
 
     return res.status(500).json({
@@ -97,8 +112,8 @@ export const getAllBundles = async (req, res, next) => {
     console.log("Bundle Migration successful")
 
     const bundles = await Bundle.find().sort({ network: 1, JBCP: 1 });
-    
-        
+
+
 
     const activeCount = bundles.filter(b => b.isActive).length;
     const inactiveCount = bundles.filter(b => !b.isActive).length;
@@ -119,24 +134,24 @@ export const getAllBundles = async (req, res, next) => {
 
 
 
-export const changeActiveStatus = async (req,res)=>{
+export const changeActiveStatus = async (req, res) => {
 
-  try{
-    
-    const {bundleId} = req.params 
+  try {
+
+    const { bundleId } = req.params
     console.log("Toggle Bundle", bundleId)
-    
-    if(!bundleId) {
-    return res.status(404).json({
-        success: false, 
-        message:"Bundle Not Found"
+
+    if (!bundleId) {
+      return res.status(404).json({
+        success: false,
+        message: "Bundle Not Found"
       })
     }
 
     const bundle = await Bundle.findById(bundleId)
 
-    if(!bundle){
-    return  res.status(404).json({
+    if (!bundle) {
+      return res.status(404).json({
         status: false,
         message: "Bundle Not found v2"
       })
@@ -148,18 +163,18 @@ export const changeActiveStatus = async (req,res)=>{
 
     await bundle.save()
 
-   console.log("Bundle Found", bundle)
+    console.log("Bundle Found", bundle)
 
-     return res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Bundle State Changed Successfully",
-    
+
     });
 
-  }catch(error){
+  } catch (error) {
     console.log(error.message)
 
-     
+
     if (error.statusCode) {
       return res.status(error.statusCode).json({
         success: false,
@@ -173,7 +188,7 @@ export const changeActiveStatus = async (req,res)=>{
       error: error.message
     });
   }
-  }
+}
 
 
 
@@ -352,7 +367,7 @@ export const updateBundle = async (req, res) => {
 
     //Zod Shcema Validation
     const validatedData = validateCreateBundle(req.body)
-    
+
     const { name, JBCP, JBSP, network, Data, recommendedRange } = validatedData;
 
     // Validation
@@ -396,12 +411,12 @@ export const updateBundle = async (req, res) => {
     if (req.file) {
       try {
         const { imageUrl: newImageUrl, publicId: newPublicId } = await uploadImage(req.file);
-        
+
         // Delete old image after successful upload
         if (bundle.publicId) {
           await cloudinary.uploader.destroy(bundle.publicId, { invalidate: true });
         }
-        
+
         imageUrl = newImageUrl;
         publicId = newPublicId;
       } catch (error) {
@@ -543,6 +558,141 @@ export const updateBundle = async (req, res) => {
 
 
 
+export const getFeaturedBundles = async (req, res, next) => {
+  try {
+    let featuredBundles = await redis.get("featuredBundles");
+    if (featuredBundles) {
+      return res.json(JSON.parse(featuredBundles))
+    }
+
+    featuredBundles = await Bundle.find({ isFeatured: true, isActive: true }).sort({ network: 1, JBCP: 1 }).lean();
+
+    if (!featuredBundles || featuredBundles.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: "No featured bundles found"
+      })
+    }
+
+    await redis.set("featuredBundles", JSON.stringify(featuredBundles));
+    res.json(featuredBundles);
+
+  } catch (error) {
+    console.log("Error in getFeaturedBundles controller", error.message)
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch featured bundles",
+    });
+  }
+};
 
 
 
+
+export const deleteBundle = async (req, res) => {
+  try {
+    const { bundleId } = req.params;
+    if (!bundleId) {
+      return res.status(400).json({
+        success: false,
+        message: "Bundle ID is required"
+      });
+    }
+
+    const bundle = await Bundle.findById(bundleId);
+
+    if (!bundle) {
+      return res.status(404).json({
+        success: false,
+        message: "Bundle not found"
+      });
+    }
+
+    if (bundle.imageUrl && bundle.publicId) {
+      try {
+        await cloudinary.uploader.destroy(`bundles/${bundle.publicId}`, { invalidate: true });
+        console.log("Primary image deleted from Cloudinary");
+      } catch (error) {
+        console.error("Failed to delete primary image from Cloudinary:", error.message);
+      }
+
+      await Bundle.findByIdAndDelete(bundleId);
+
+      res.status(200).json({
+        success: true,
+        message: "Bundle deleted successfully",
+        deletedBundle
+      });
+    }
+
+  } catch (error) {
+    console.error("Delete bundle error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete bundle",
+      error: error.message
+    });
+  }
+};
+
+
+
+
+
+export const getBestSellingBundles = async (req, res) => {
+  try {
+    const bestSellers = await Bundle.aggregate([
+      {
+        $sample: { size: 3 }
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          network: 1,
+          JBCP: 1,
+          JBSP: 1,
+          imageUrl: 1
+
+        }
+      }
+    ])
+    res.json(bestSellers);
+  } catch (error) {
+    console.error("Error fetching best-selling bundles:", error);
+    res.status(500).json({ status: false, message: "Failed to fetch best-selling bundles", error: error.message })
+  }
+}
+
+
+
+export const getBundlesByCategory = async (req, res) => {
+
+  const { category } = req.params
+  try {
+    const bundles = await Bundle.find({ category, isActive: true }).sort({ network: 1, JBCP: 1 });
+    res.json(bundles);
+  } catch (error) {
+    console.error("Error fetching bundles by category:", error);
+    res.status(500).json({ status: false, message: "Failed to fetch bundles by category", error: error.message })
+  }
+}
+
+
+export const toggleFeaturedStatus = async (req, res) => {
+  const { bundleId } = req.params;
+  try {
+    const bundle = await Bundle.findById(bundleId);
+    if (bundle) {
+      bundle.isFeatured = !bundle.isFeatured;
+      const updatedBundle = await bundle.save()
+      await updateFeaturedBundlesCache()
+      res.json(updatedBundle);
+    } else {
+      res.status(404).json({ success: false, message: "Bundle not found" });
+    }
+  } catch (error) {
+    console.error("Error toggling featured status:", error);
+    res.status(500).json({ success: false, message: "Failed to toggle featured status", error: error.message })
+  }
+}
