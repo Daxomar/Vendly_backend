@@ -91,7 +91,7 @@ export const signUp = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'lax' : 'lax',
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60,
             path: '/',
         });
@@ -100,7 +100,7 @@ export const signUp = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'lax' : 'lax',
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
         });
@@ -208,7 +208,7 @@ export const vendorSignUp = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'lax' : 'lax',
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60,
             path: '/',
         });
@@ -217,7 +217,7 @@ export const vendorSignUp = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'lax' : 'lax',
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
         });
@@ -300,7 +300,7 @@ export const signIn = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'lax' : 'lax',
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60,
             path: '/',
         });
@@ -309,7 +309,7 @@ export const signIn = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'lax' : 'lax',
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
         });
@@ -426,7 +426,7 @@ export const signOut = async (req, res, next) => {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
-            domain: ".joydatabundle.com",
+            domain: ".vforvandetta.online",
             path: "/",
         });
 
@@ -434,7 +434,7 @@ export const signOut = async (req, res, next) => {
             httpOnly: true,
             secure: true,
             sameSite: 'lax',
-            domain: ".joydatabundle.com",
+            domain: ".vforvandetta.online",
             path: "/",
         })
 
@@ -847,7 +847,7 @@ export const refresh = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? "lax" : "lax",
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 15,
             path: '/',
         });
@@ -856,7 +856,7 @@ export const refresh = async (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? "lax" : "lax",
-            domain: isProduction ? '.joydatabundle.com' : undefined,
+            domain: isProduction ? '.vforvandetta.online' : undefined,
             maxAge: 1000 * 60 * 60 * 24 * 7,
             path: '/',
         });

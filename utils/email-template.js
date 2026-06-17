@@ -149,8 +149,8 @@ export const generateOTPEmailTemplate = ({
                     JoyDataBundle | Ghana
                 </p>
                 <p style="margin: 0;">
-                    <a href="https://www.joydatabundle.com/privacy" style="color: #ffffff; text-decoration: none; margin: 0 10px;">Privacy Policy</a> | 
-                    <a href="https://www.joydatabundle.com/terms" style="color: #ffffff; text-decoration: none; margin: 0 10px;">Terms of Service</a>
+                    <a href="https://www.vforvandetta.online/privacy" style="color: #ffffff; text-decoration: none; margin: 0 10px;">Privacy Policy</a> | 
+                    <a href="https://www.vforvandetta.online/terms" style="color: #ffffff; text-decoration: none; margin: 0 10px;">Terms of Service</a>
                 </p>
             </td>
         </tr>
@@ -262,7 +262,7 @@ export const generateInviteEmailTemplate = ({
 //APPROVAL EMAIL TEMPLATE
 export const generateApprovedEmailTemplate = ({
   userName,
-  loginUrl = "https://www.joydatabundle.com/auth/login"
+  loginUrl = "https://www.vforvandetta.online/auth/login"
 }) => `
 <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; background-color: #f0f6ff; padding: 20px;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);">
