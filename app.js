@@ -85,10 +85,10 @@ app.set('trust proxy', 1);
 // CORS configuration - MUST be before other middlewares
 const allowedOrigins = [
   "https://vendly-blush.vercel.app",
+  "https://www.vforvandetta.online",
+  "https://vforvandetta.online",
   "https://incurrable-wilhelmina-uncolloquially.ngrok-free.dev",
   "https://5e27-154-161-52-97.ngrok-free.app",
-  "https://www.joydatabundle.com",
-  "https://joydatabundle.com",
   "http://localhost:3000",
   "http://localhost:5000"
 ];
