@@ -38,8 +38,8 @@ export const createDeliveryService = async (data) => {
 // ============================================
 // GET ALL DELIVERIES
 // ============================================
-export const getAllDeliveriesService = async () => {
-  const deliveries = await Delivery.find().sort({ createdAt: -1 });
+export const getAllDeliveriesService = async (vendor) => {
+  const deliveries = await Delivery.find({ parentVendor: vendor }).sort({ createdAt: -1 });
   
   if (!deliveries || deliveries.length === 0) {
     return [];
@@ -67,7 +67,7 @@ export const getDeliveryByIdService = async (id) => {
 // ============================================
 // UPDATE DELIVERY
 // ============================================
-export const updateDeliveryService = async (id, data) => {
+export const updateDeliveryService = async (id, data, vendor) => {
   const { location, label, description, note, price } = data;
 
   // Validation
@@ -77,12 +77,15 @@ export const updateDeliveryService = async (id, data) => {
       message: 'Missing required fields: location, label, description, price'
     };
   }
-
+console.log("Updating delivery with ID:", id, "Data:", data, "Vendor:", vendor);
   // Check if location already exists (for other deliveries)
   const existingDelivery = await Delivery.findOne({
     location,
-    _id: { $ne: id } // Exclude current delivery
+    _id: { $ne: id } ,// Exclude current delivery
+    parentVendor: vendor
   });
+
+  console.log("Existing delivery check result:", existingDelivery);
 
   if (existingDelivery) {
     throw {
@@ -92,17 +95,17 @@ export const updateDeliveryService = async (id, data) => {
   }
 
   // Update delivery
-  const delivery = await Delivery.findByIdAndUpdate(
-    id,
-    {
-      location,
-      label,
-      description,
-      note: note || '',
-      price
-    },
-    { new: true, runValidators: true }
-  );
+const delivery = await Delivery.findOneAndUpdate(
+  { _id: id, parentVendor: vendor },
+  {
+    location,
+    label,
+    description,
+    note: note || '',
+    price
+  },
+  { new: true, runValidators: true }
+);
 
   if (!delivery) {
     throw {
@@ -117,8 +120,8 @@ export const updateDeliveryService = async (id, data) => {
 // ============================================
 // DELETE DELIVERY
 // ============================================
-export const deleteDeliveryService = async (id) => {
-  const delivery = await Delivery.findByIdAndDelete(id);
+export const deleteDeliveryService = async (id, vendor) => {
+  const delivery = await Delivery.findOneAndDelete({ _id: id, parentVendor: vendor });
 
   if (!delivery) {
     throw {
@@ -133,8 +136,9 @@ export const deleteDeliveryService = async (id) => {
 // ============================================
 // TOGGLE DELIVERY STATUS
 // ============================================
-export const toggleDeliveryStatusService = async (id, active) => {
-  const delivery = await Delivery.findById(id);
+export const toggleDeliveryStatusService = async (id, active, vendor) => {
+  console.log("Toggling delivery status for ID:", id, "Active:", active, "Vendor:", vendor);
+  const delivery = await Delivery.findOne({ _id: id, parentVendor: vendor });
 
   if (!delivery) {
     throw {

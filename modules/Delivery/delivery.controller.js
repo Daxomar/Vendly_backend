@@ -33,7 +33,8 @@ export const createDelivery = async (req, res) => {
 // ============================================
 export const getAllDeliveries = async (req, res) => {
   try {
-    const deliveries = await getAllDeliveriesService();
+    const vendor = req.tenantFilter.parentVendor;
+    const deliveries = await getAllDeliveriesService(vendor);
     
     res.status(200).json({
       success: true,
@@ -77,7 +78,8 @@ export const getDeliveryById = async (req, res) => {
 export const updateDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-    const delivery = await updateDeliveryService(id, req.body);
+    const vendor = req.tenantFilter.parentVendor;
+    const delivery = await updateDeliveryService(id, req.body, vendor);
     
     res.status(200).json({
       success: true,
@@ -99,8 +101,9 @@ export const updateDelivery = async (req, res) => {
 export const deleteDelivery = async (req, res) => {
   try {
     const { id } = req.params;
-    await deleteDeliveryService(id);
-    
+    const vendor = req.tenantFilter.parentVendor;
+    await deleteDeliveryService(id, vendor);
+
     res.status(200).json({
       success: true,
       message: 'Delivery deleted successfully'
@@ -121,7 +124,8 @@ export const toggleDeliveryStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { active } = req.body;
-    const delivery = await toggleDeliveryStatusService(id, active);
+    const vendor = req.tenantFilter.parentVendor;
+    const delivery = await toggleDeliveryStatusService(id, active, vendor);
     
     res.status(200).json({
       success: true,

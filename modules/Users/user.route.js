@@ -102,7 +102,7 @@ userRouter.get(
 userRouter.post(
   '/invite',
   protect,
-  authorizeRoles("admin"),
+  authorizeRoles("admin", "vendor"),  // ← Both can access
   strictLimiter,
   inviteReseller
 );
@@ -142,7 +142,8 @@ userRouter.get(
 userRouter.get(
   '/:id',
   protect,
-  authorizeRoles("admin"),
+  authorizeRoles("admin", "vendor"),  // ← Both can access
+  tenantFilter,                       // ← Sets filter based on role
   generalLimiter,
   getReseller
 );
@@ -160,7 +161,8 @@ userRouter.get(
 userRouter.patch(
   '/:userId/approve',
   protect,
-  authorizeRoles('admin'), // will change this to allow role vendor-specific approval later
+  authorizeRoles('admin', 'vendor'), // will change this to allow role vendor-specific approval later
+  tenantFilter,                       // Sets filter based on role
   strictLimiter,
   approveReseller
 );
@@ -179,7 +181,8 @@ userRouter.patch(
 userRouter.patch(
   '/:userId/reject',
   protect,
-  authorizeRoles('admin'),
+  authorizeRoles('admin', 'vendor'), // will change this to allow role vendor-specific approval later
+  tenantFilter,                       // Sets filter based on role
   strictLimiter,
   rejectReseller
 );

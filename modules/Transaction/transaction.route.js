@@ -62,6 +62,7 @@ import {
  } from '../Transaction/transaction.controller.js';
 
  import { generalLimiter, lenientLimiter, strictLimiter } from "../../middlewares/ratelimiter.middleware.js";
+import { tenantFilter } from '../../middlewares/tenantFilter.middleware.js';
 
 const transactionRouter = Router();
 
@@ -69,22 +70,22 @@ const transactionRouter = Router();
    ADMIN ROUTES /api/transactions/*
    ════════════════════════════════════════ */
 
-transactionRouter.post('/bulk-export', protect, authorizeRoles("admin"), generalLimiter, bulkExportTransactions);
+transactionRouter.post('/bulk-export', protect, authorizeRoles("admin", "vendor"), generalLimiter, tenantFilter, bulkExportTransactions);
 
 // Get list of bulk exports - GENERAL (read-only, admin)
-transactionRouter.get('/bulk-exports/list', protect, authorizeRoles("admin"), generalLimiter, getAllBulkExports);
+transactionRouter.get('/bulk-exports/list', protect, authorizeRoles("admin", "vendor"), generalLimiter, tenantFilter, getAllBulkExports);
 
 // Get specific bulk export - GENERAL (read-only, admin)
-transactionRouter.get('/bulk-export/:exportId', protect, authorizeRoles("admin"), generalLimiter, getBulkExportTransactions);
+transactionRouter.get('/bulk-export/:exportId', protect, authorizeRoles("admin", "vendor"), generalLimiter, tenantFilter, getBulkExportTransactions);
 
 // Mark as delivered - STRICT (write operation)
-transactionRouter.patch('/bulk-export/:exportId/mark-delivered', protect, authorizeRoles("admin"), lenientLimiter, bulkMarkDelivered);
+transactionRouter.patch('/bulk-export/:exportId/mark-delivered', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, bulkMarkDelivered);
 
 // Get all transactions - GENERAL (read-only, admin)
-transactionRouter.get('/', protect, authorizeRoles("admin"), lenientLimiter, getTransactions);
+transactionRouter.get('/', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, getTransactions);
 
 // Update delivery status
-transactionRouter.patch('/:transactionId/delivery', protect, authorizeRoles("admin"), lenientLimiter, updateDeliveryStatus);
+transactionRouter.patch('/:transactionId/delivery', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, updateDeliveryStatus);
 
 /* ════════════════════════════════════════
    VENDOR ROUTES /api/transactions/vendor/*

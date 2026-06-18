@@ -10,7 +10,7 @@ import Delivery from '../models/delivery.model.js'
 import StoreConfig from '../models/store.model.js'
 
 const DB_URI = "mongodb://mongodb:27017/VENDLYTEST?replicaSet=rs0"
-// const DB_URI = "mongodb+srv://daxohnero_db_user:6Iipcm3XAKJPUGe3@mini-importation-dev.5twxn8x.mongodb.net/?appName=Mini-Importation-DEV"
+
 
 
 const seed = async () => {

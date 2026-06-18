@@ -12,10 +12,10 @@ import { uploadImage } from '../../utils/uploadImage.js';
 
 //UTILITY WILL MOVE IT LATER
 const updateFeaturedBundlesCache = async () => {
-  try{
+  try {
     const featuredBundles = await Bundle.find({ isFeatured: true, isActive: true }).sort({ network: 1, JBCP: 1 }).lean();
     await redis.set("featuredBundles", JSON.stringify(featuredBundles));
-  }catch(error){
+  } catch (error) {
     console.log("Error updating featured bundles cache", error.message)
     throw error;
   }
@@ -110,9 +110,9 @@ export const getAllBundles = async (req, res, next) => {
   try {
 
     console.log("Bundle Migration successful")
+    const personRole = req.tenantFilter;
 
-    const bundles = await Bundle.find().sort({ network: 1, JBCP: 1 });
-
+    const bundles = await Bundle.find(personRole).sort({ network: 1, JBCP: 1 }); 
 
 
     const activeCount = bundles.filter(b => b.isActive).length;
@@ -139,7 +139,8 @@ export const changeActiveStatus = async (req, res) => {
   try {
 
     const { bundleId } = req.params
-    console.log("Toggle Bundle", bundleId)
+    const vendorId = req.tenantFilter.parentVendor; // Assuming tenantFilter sets this based on the user's role and association
+
 
     if (!bundleId) {
       return res.status(404).json({
@@ -148,12 +149,16 @@ export const changeActiveStatus = async (req, res) => {
       })
     }
 
-    const bundle = await Bundle.findById(bundleId)
+    // const bundle = await Bundle.findById(bundleId)
+    const bundle = await Bundle.findOne({
+      _id: bundleId,
+      parentVendor: vendorId
+    })
 
     if (!bundle) {
       return res.status(404).json({
         status: false,
-        message: "Bundle Not found v2"
+        message: `Bundle Not found v2 ${vendorId}`
       })
     }
 
@@ -356,12 +361,13 @@ export const updateBundle = async (req, res) => {
   try {
     console.log("Starting atomic bundle update");
     const { bundleId } = req.params;
+    const vendorId = req.tenantFilter.parentVendor;
 
-    if (!bundleId) {
+    if (!bundleId || !vendorId) {
       await session.abortTransaction();
       return res.status(404).json({
         success: false,
-        message: "No bundleId provided"
+        message: "No bundleId or vendorId provided"
       });
     }
 
@@ -391,7 +397,7 @@ export const updateBundle = async (req, res) => {
     console.log("Update info:", { name, JBCP, JBSP, network, Data });
 
     // ===== STEP 1: Fetch the bundle =====
-    const bundle = await Bundle.findById(bundleId).session(session);
+    const bundle = await Bundle.findOne({ _id: bundleId, parentVendor: vendorId }).session(session);
 
     if (!bundle) {
       await session.abortTransaction();
@@ -477,7 +483,7 @@ export const updateBundle = async (req, res) => {
       console.log(`JBSP changed from ${oldJBSP} to ${JBSP}. Syncing reseller prices...`);
 
       const result = await ResellerBundlePrice.updateMany(
-        { bundleId },
+        { bundleId, parentVendor: vendorId },
         [
           {
             $set: {
@@ -501,7 +507,7 @@ export const updateBundle = async (req, res) => {
       console.log(`Updated ${result.modifiedCount} reseller prices in single operation`);
 
       const updatedPrices = await ResellerBundlePrice.find(
-        { bundleId },
+        { bundleId, parentVendor: vendorId },
         null,
         { session }
       );
@@ -592,6 +598,8 @@ export const getFeaturedBundles = async (req, res, next) => {
 export const deleteBundle = async (req, res) => {
   try {
     const { bundleId } = req.params;
+    const vendorId = req.tenantFilter.parentVendor;
+    
     if (!bundleId) {
       return res.status(400).json({
         success: false,
@@ -599,7 +607,7 @@ export const deleteBundle = async (req, res) => {
       });
     }
 
-    const bundle = await Bundle.findById(bundleId);
+    const bundle = await Bundle.findOne({ _id: bundleId, parentVendor: vendorId });
 
     if (!bundle) {
       return res.status(404).json({
@@ -616,7 +624,7 @@ export const deleteBundle = async (req, res) => {
         console.error("Failed to delete primary image from Cloudinary:", error.message);
       }
 
-      await Bundle.findByIdAndDelete(bundleId);
+      await Bundle.findOneAndDelete({ _id: bundleId, parentVendor: vendorId });
 
       res.status(200).json({
         success: true,
@@ -681,8 +689,10 @@ export const getBundlesByCategory = async (req, res) => {
 
 export const toggleFeaturedStatus = async (req, res) => {
   const { bundleId } = req.params;
+  const vendorId = req.tenantFilter.parentVendor;
   try {
-    const bundle = await Bundle.findById(bundleId);
+    const bundle = await Bundle.findOne({ _id: bundleId, parentVendor: vendorId });
+
     if (bundle) {
       bundle.isFeatured = !bundle.isFeatured;
       const updatedBundle = await bundle.save()

@@ -64,6 +64,7 @@ import {
 import { strictLimiter, generalLimiter, lenientLimiter, strictLimiterIpBased } from "../../middlewares/ratelimiter.middleware.js";
 import { upload } from '../../middlewares/upload.middleware.js';
 import { authorizeRoles, protect } from '../../middlewares/auth.middleware.js'
+import { tenantFilter } from '../../middlewares/tenantFilter.middleware.js';
 
 const bundleRouter = Router();
 
@@ -71,23 +72,25 @@ const bundleRouter = Router();
 // ADMIN ROUTES /api/bundles/*
 // ═══════════════════════════════════════════════════════════════
 
-bundleRouter.post('/createBundleInDb', protect, authorizeRoles("admin"), generalLimiter, upload.single('image'), createBundleInDb);
+bundleRouter.post('/createBundleInDb', protect, authorizeRoles("admin", "vendor"), generalLimiter, tenantFilter, upload.single('image'), createBundleInDb);
 
-bundleRouter.patch('/bundleId/toggle-featured', protect, authorizeRoles("admin"), lenientLimiter, toggleFeaturedStatus);
+bundleRouter.patch('/bundleId/toggle-featured', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, toggleFeaturedStatus);
 
-bundleRouter.patch('/:bundleId/toggle-status', protect, authorizeRoles("admin"), lenientLimiter, changeActiveStatus);
+bundleRouter.patch('/:bundleId/toggle-status', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, changeActiveStatus); //tenancy working
 
-bundleRouter.patch('/:bundleId/update', protect, authorizeRoles("admin"), lenientLimiter, upload.single('image'), updateBundle);
+bundleRouter.patch('/:bundleId/update', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, upload.single('image'), updateBundle); //tenancy working
 
-bundleRouter.delete('/:bundleId/delete', protect, authorizeRoles("admin"), lenientLimiter, deleteBundle);
+bundleRouter.delete('/:bundleId/delete', protect, authorizeRoles("admin", "vendor"), lenientLimiter, tenantFilter, deleteBundle);  //tenancy working
 
-bundleRouter.get("/best-sellers", generalLimiter, getBestSellingBundles);
+bundleRouter.get("/best-sellers", generalLimiter, tenantFilter, getBestSellingBundles);
 
-bundleRouter.get('/getBundleFromDb', generalLimiter, getAllBundles);
+bundleRouter.get('/getBundleFromDb', protect, authorizeRoles("admin", "vendor"), generalLimiter, tenantFilter, getAllBundles);
 
-bundleRouter.get('/featured', generalLimiter, getFeaturedBundles);
+// bundleRouter.get('/getBundleFromDb', generalLimiter, getAllBundles);// strictly for resellers to use. will rectify better later
 
-bundleRouter.get('/category/:category', generalLimiter, getBundlesByCategory);
+bundleRouter.get('/featured', generalLimiter, tenantFilter, getFeaturedBundles);
+
+bundleRouter.get('/category/:category', generalLimiter, tenantFilter, getBundlesByCategory);
 
 // ═══════════════════════════════════════════════════════════════
 // VENDOR ROUTES /api/vendor/bundles/*

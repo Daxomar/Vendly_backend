@@ -24,7 +24,8 @@ import { Router} from 'express';
 import { 
   createDelivery, 
   getAllDeliveries, 
-  updateDelivery, 
+  // getVendorDeliveries,
+  updateDelivery,  
   deleteDelivery, 
   toggleDeliveryStatus
   // vendorCreateDelivery,
@@ -35,6 +36,7 @@ import {
 } from './delivery.controller.js';
 import { strictLimiter, generalLimiter, lenientLimiter, strictLimiterIpBased} from "../../middlewares/ratelimiter.middleware.js";
 import { authorizeRoles, protect } from '../../middlewares/auth.middleware.js'
+import { tenantFilter } from '../../middlewares/tenantFilter.middleware.js';
 
 const deliveryRouter = Router();
 
@@ -42,11 +44,12 @@ const deliveryRouter = Router();
 // ADMIN ROUTES /api/deliveries/*
 // ═══════════════════════════════════════════════════════════════
 
-deliveryRouter.post("/", lenientLimiter, protect, authorizeRoles("admin"), createDelivery);
-deliveryRouter.get("/", getAllDeliveries);
-deliveryRouter.put("/:id", lenientLimiter, protect, authorizeRoles("admin"), updateDelivery);
-deliveryRouter.delete("/:id", lenientLimiter, protect, authorizeRoles("admin"), deleteDelivery);
-deliveryRouter.patch("/:id/toggle", lenientLimiter, protect, authorizeRoles("admin"), toggleDeliveryStatus);
+deliveryRouter.post("/",  protect,lenientLimiter,  authorizeRoles("admin", "vendor"),tenantFilter, createDelivery);
+deliveryRouter.get("/",protect, lenientLimiter,  authorizeRoles("admin", "vendor"),tenantFilter, getAllDeliveries);
+// deliveryRouter.get("/vendor", getVendorDeliveries);
+deliveryRouter.put("/:id",  protect,lenientLimiter,  authorizeRoles("admin", "vendor"),tenantFilter, updateDelivery);
+deliveryRouter.delete("/:id",  protect,lenientLimiter,  authorizeRoles("admin", "vendor"),tenantFilter, deleteDelivery);
+deliveryRouter.patch("/:id/toggle",  protect,lenientLimiter,  authorizeRoles("admin", "vendor"),tenantFilter, toggleDeliveryStatus);
 
 // ═══════════════════════════════════════════════════════════════
 // VENDOR ROUTES /api/deliveries/vendor/*

@@ -1,5 +1,6 @@
 import Transaction from '../../models/transaction.model.js';
 import BulkExport from '../../models/bulkexport.model.js';
+import { parentPort } from 'worker_threads';
 
 
 
@@ -24,8 +25,8 @@ function generateUniqueId() {
 const getAnalytics = async (filter) => {
   try {
     // Build filter for successful transactions only (for most calculations)
-    const successFilter = { ...filter, status: 'success' };
-
+    const successFilter = { ...filter, status: 'success', };
+console.log("Success Filter:", successFilter)
     // Aggregate analytics in parallel
     const [revenueData, ordersData, profitData, costData, activeOrdersData, processingOrdersData, deliveredOrderData] = await Promise.all([
       // Total Revenue (sum of amounts for successful transactions)
@@ -183,7 +184,6 @@ export const getTransactions = async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
-
    console.log("Transaction Migration successful")
 
     const {
@@ -200,8 +200,10 @@ export const getTransactions = async (req, res) => {
     // Build filter query
     const filter = {
       // Default to successful transactions only
-      status: status || 'success'
+      status: status || 'success',
+      ...req.tenantFilter 
     };
+
 
     // Network filter
     if (network) {
@@ -274,7 +276,7 @@ export const getTransactions = async (req, res) => {
         resellerName: transaction.metadata?.resellerName || 'N/A',
         resellerProfit: transaction.metadata?.resellerProfit || 0,
         bundleData: transaction.metadata?.bundleData || 'N/A',
-        
+        parentVendor: transaction.parentVendor || 'N/A'
       };
     });
 
